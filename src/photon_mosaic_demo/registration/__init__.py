@@ -1,0 +1,1 @@
+"""Initialize registration module."""
