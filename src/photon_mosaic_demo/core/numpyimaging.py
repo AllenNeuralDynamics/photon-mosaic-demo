@@ -22,17 +22,18 @@ class NumpyImaging(BaseImaging):
 
     def __init__(
         self,
-        timeseries: PathType | ArrayType,
+        timeseries: ArrayType,
         sampling_frequency: FloatType,
         channel_index: int = None,
         time_vector: ArrayType | None = None,
+        seed = None
     ):
         """Create a NumpyImagingExtractor from a .npy file.
 
         Parameters
         ----------
-        timeseries: PathType
-            Path to .npy file.
+        timeseries: ArrayType
+            Numpy array representing the video.
         sampling_frequency: FloatType
             Sampling frequency of the video in Hz.
         channel_index: int, default: None
@@ -40,22 +41,18 @@ class NumpyImaging(BaseImaging):
         time_vector: ArrayType | None, default: None
             Optional time vector for the video.
         """
-        if isinstance(timeseries, (str, Path)):
-            timeseries = Path(timeseries)
-            if timeseries.is_file():
-                assert timeseries.suffix == ".npy", "'timeseries' file is not a numpy file (.npy)"
-                self._video = np.load(timeseries, mmap_mode="r")
-                timeseries_kwarg = str(Path(timeseries).absolute())
-            else:
-                raise ValueError("'timeseries' is does not exist")
-        elif isinstance(timeseries, np.ndarray):
-            self.is_dumpable = False
+        if isinstance(timeseries, np.ndarray):
             self._video = timeseries
             timeseries_kwarg = timeseries
         else:
-            raise TypeError("'timeseries' can be a str or a numpy array")
+            raise TypeError("'timeseries' must be a numpy array")
 
         self._sampling_frequency = float(sampling_frequency)
+
+        if seed is None:
+            rng = np.random.default_rng(seed=seed)
+            seed = rng.integers(0, 1e6)
+
 
         if len(self._video.shape) not in [3, 4]:
             raise ValueError("'timeseries' must be a 3D or 4D numpy array (num_frames, height, width, [num_channels])")
@@ -70,7 +67,6 @@ class NumpyImaging(BaseImaging):
         if len(self._video.shape) == 4:
             # check if this converts to np.ndarray
             self._video = self._video[:, :, :, self.channel_index]
-        print(self._video.shape)
 
         BaseImaging.__init__(self, shape=(width, height), sampling_frequency=sampling_frequency)
 
@@ -81,6 +77,7 @@ class NumpyImaging(BaseImaging):
             "sampling_frequency": self._sampling_frequency,
             "channel_index": self.channel_index,
             "time_vector": time_vector,
+            "seed": seed
         }
 
 
@@ -109,9 +106,6 @@ class NumpyImagingSegment(BaseImagingSegment):
         start = start_frame if start_frame is not None else 0
         end = end_frame if end_frame is not None else self._video.shape[0]
         return self._video[start:end, ...]
-
-    def get_num_samples(self):
-        return self._video.shape[0]
 
     def get_num_samples(self) -> int:
         """Returns the number of samples in this signal segment

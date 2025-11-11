@@ -7,6 +7,8 @@ from roiextractors.core_utils import _convert_bytes_to_str, _convert_seconds_to_
 from spikeinterface.core.base import BaseExtractor, BaseSegment
 
 
+# TODO: frames instead of samples
+
 class BaseImaging(BaseExtractor):
     """Base class for imaging extractors."""
 
@@ -18,9 +20,6 @@ class BaseImaging(BaseExtractor):
         assert len(shape) == 2, "Shape must be a tuple/list/array of length 2 (width, height)"
         self._image_shape = np.array(shape)
         self._imaging_segments: list[BaseImagingSegment] = []
-
-    def __repr__(self):
-        return self._repr_header()
 
     def _repr_text(self, display_name=True):
         """Generate text representation of the BaseImaging object."""
@@ -93,7 +92,6 @@ class BaseImaging(BaseExtractor):
     def sampling_frequency(self):
         return self._sampling_frequency
 
-
     def get_num_samples(self, segment_index: int | None = None) -> int:
         """Get the total number of samples (frames) in the imaging data.
 
@@ -114,7 +112,6 @@ class BaseImaging(BaseExtractor):
 
     def get_num_segments(self) -> int:
         return len(self._imaging_segments)
-
 
     def get_dtype(self) -> DTypeLike:
         """Get the data type of the video.
@@ -183,51 +180,22 @@ class BaseImaging(BaseExtractor):
                 raise ValueError("segment_index must be provided for multi-segment imaging data.")
         return self._imaging_segments[segment_index].get_times()
 
-# class BaseImagingSegment:
-#     """Base class for imaging segments."""
+    def set_times(self, times: ArrayLike, segment_index: int | None = None):
+        """Set the timestamps for each frame in the imaging data.
 
-#     def __init__(self, parent_imaging: BaseImaging):
-#         self._parent_imaging = parent_imaging
-
-
-#     def get_num_samples(self) -> int:
-#         """Get the total number of samples (frames) in this imaging segment.
-
-#         Returns
-#         -------
-#         int
-#             The total number of samples (frames).
-#         """
-#         raise NotImplementedError("This method should be implemented in subclasses.")
-
-
-#     def get_series(start_frame: int, end_frame: int) -> np.ndarray:
-#         """Get a series of frames from the imaging segment.
-
-#         Parameters
-#         ----------
-#         start_frame : int
-#             The starting frame index (inclusive).
-#         end_frame : int
-#             The ending frame index (exclusive).
-
-#         Returns
-#         -------
-#         np.ndarray
-#             The requested series of frames as a NumPy array.
-#         """
-#         raise NotImplementedError("This method should be implemented in subclasses.")
-
-
-#     def get_times(self) -> np.ndarray:
-#         """Get the timestamps for each frame in this imaging segment.
-
-#         Returns
-#         -------
-#         np.ndarray
-#             The timestamps for each frame.
-#         """
-#         raise NotImplementedError("This method should be implemented in subclasses.")
+        Parameters
+        ----------
+        times : ArrayLike
+            The timestamps to set.
+        segment_index : int | None
+            The index of the imaging segment. If None and there is only one segment, it defaults to 0.
+        """
+        if segment_index is None:
+            if self.get_num_segments() == 1:
+                segment_index = 0
+            else:
+                raise ValueError("segment_index must be provided for multi-segment imaging data.")
+        self._imaging_segments[segment_index].time_vector = np.asarray(times)
 
 
 class BaseImagingSegment(BaseSegment):
@@ -351,8 +319,8 @@ class BaseImagingSegment(BaseSegment):
 
         Returns
         -------
-        traces : np.ndarray
-            Array of traces, num_samples x num_channels
+        series : np.ndarray
+            Array of series, num_samples x width x height
         """
         # must be implemented in subclass
         raise NotImplementedError

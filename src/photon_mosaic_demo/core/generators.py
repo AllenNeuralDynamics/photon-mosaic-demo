@@ -197,7 +197,7 @@ def generate_ground_truth_video(
     video += noise_std * np.abs(np.random.randn(*video.shape))
 
     # instantiate imaging and segmentation extractors
-    imag = NumpyImaging(timeseries=video, sampling_frequency=30)
+    imag = NumpyImaging(timeseries=video, sampling_frequency=sampling_frequency)
 
     # create image masks
     image_masks = np.zeros((size_x, size_y, num_rois))
