@@ -14,7 +14,7 @@ from warnings import warn
 import numpy as np
 
 from .baseimaging import BaseImaging, BaseImagingSegment
-from .utils import PathType, FloatType, ArrayType
+from .utils import ArrayType, FloatType, PathType
 
 
 class NumpyImaging(BaseImaging):
@@ -26,7 +26,7 @@ class NumpyImaging(BaseImaging):
         sampling_frequency: FloatType,
         channel_index: int = None,
         time_vector: ArrayType | None = None,
-        seed = None
+        seed=None,
     ):
         """Create a NumpyImagingExtractor from a .npy file.
 
@@ -53,13 +53,16 @@ class NumpyImaging(BaseImaging):
             rng = np.random.default_rng(seed=seed)
             seed = rng.integers(0, 1e6)
 
-
         if len(self._video.shape) not in [3, 4]:
-            raise ValueError("'timeseries' must be a 3D or 4D numpy array (num_frames, height, width, [num_channels])")
+            raise ValueError(
+                "'timeseries' must be a 3D or 4D numpy array (num_frames, height, width, [num_channels])"
+            )
         _, width, height = self._video.shape[0:3]
         num_channels = 1 if len(self._video.shape) == 3 else self._video.shape[3]
         if num_channels > 1:
-            assert channel_index is not None, "'channel_index' must be provided for multi-channel videos"
+            assert (
+                channel_index is not None
+            ), "'channel_index' must be provided for multi-channel videos"
             self.channel_index = channel_index
         else:
             self.channel_index = 0
@@ -68,27 +71,42 @@ class NumpyImaging(BaseImaging):
             # check if this converts to np.ndarray
             self._video = self._video[:, :, :, self.channel_index]
 
-        BaseImaging.__init__(self, shape=(width, height), sampling_frequency=sampling_frequency)
+        BaseImaging.__init__(
+            self, shape=(width, height), sampling_frequency=sampling_frequency
+        )
 
-        self.add_imaging_segment(NumpyImagingSegment(video=self._video, sampling_frequency=self._sampling_frequency, time_vector=time_vector))
+        self.add_imaging_segment(
+            NumpyImagingSegment(
+                video=self._video,
+                sampling_frequency=self._sampling_frequency,
+                time_vector=time_vector,
+            )
+        )
 
         self._kwargs = {
             "timeseries": timeseries_kwarg,
             "sampling_frequency": self._sampling_frequency,
             "channel_index": self.channel_index,
             "time_vector": time_vector,
-            "seed": seed
+            "seed": seed,
         }
 
 
 class NumpyImagingSegment(BaseImagingSegment):
     """A single segment of an Imaging specified by a numpy array"""
 
-    def __init__(self, video: np.ndarray, sampling_frequency: float, time_vector: ArrayType | None = None):
+    def __init__(
+        self,
+        video: np.ndarray,
+        sampling_frequency: float,
+        time_vector: ArrayType | None = None,
+    ):
         super().__init__(sampling_frequency=sampling_frequency, time_vector=time_vector)
         self._video = video
 
-    def get_series(self, start_frame: int | None = None, end_frame: int | None = None) -> np.ndarray:
+    def get_series(
+        self, start_frame: int | None = None, end_frame: int | None = None
+    ) -> np.ndarray:
         """Get the raw series, optionally for a subset of samples.
 
         Parameters

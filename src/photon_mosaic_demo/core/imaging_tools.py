@@ -1,12 +1,11 @@
 from pathlib import Path
+
 import numpy as np
-
-from spikeinterface.core.job_tools import fix_job_kwargs, _shared_job_kwargs_doc
 from spikeinterface.core.core_tools import add_suffix
+from spikeinterface.core.job_tools import _shared_job_kwargs_doc, fix_job_kwargs
 
-
-from .utils import PathType, DTypeLike
 from .job_tools import ChunkRecordingExecutor
+from .utils import DTypeLike, PathType
 
 
 # used by write_binary_recording + ChunkRecordingExecutor
@@ -17,7 +16,10 @@ def _init_binary_worker(imaging, file_path_dict, dtype, byte_offest):
     worker_ctx["byte_offset"] = byte_offest
     worker_ctx["dtype"] = np.dtype(dtype)
 
-    file_dict = {segment_index: open(file_path, "rb+") for segment_index, file_path in file_path_dict.items()}
+    file_dict = {
+        segment_index: open(file_path, "rb+")
+        for segment_index, file_path in file_path_dict.items()
+    }
     worker_ctx["file_dict"] = file_dict
 
     return worker_ctx
@@ -37,7 +39,9 @@ def _write_binary_chunk(segment_index, start_frame, end_frame, worker_ctx):
     # Calculate byte offsets for the start frames relative to the entire recording
     start_byte = byte_offset + start_frame * num_pixels * dtype_size_bytes
 
-    video = imaging.get_series(start_frame=start_frame, end_frame=end_frame, segment_index=segment_index)
+    video = imaging.get_series(
+        start_frame=start_frame, end_frame=end_frame, segment_index=segment_index
+    )
     video = video.astype(dtype, order="c", copy=False)
 
     file.seek(start_byte)
@@ -80,18 +84,25 @@ def write_binary_imaging(
     file_path_list = [file_paths] if not isinstance(file_paths, list) else file_paths
     num_segments = imaging.get_num_segments()
     if len(file_path_list) != num_segments:
-        raise ValueError("'file_paths' must be a list of the same size as the number of segments in the recording")
+        raise ValueError(
+            "'file_paths' must be a list of the same size as the number of segments in the recording"
+        )
 
     file_path_list = [Path(file_path) for file_path in file_path_list]
     if add_file_extension:
-        file_path_list = [add_suffix(file_path, ["raw", "bin", "dat"]) for file_path in file_path_list]
+        file_path_list = [
+            add_suffix(file_path, ["raw", "bin", "dat"]) for file_path in file_path_list
+        ]
 
     dtype = dtype if dtype is not None else imaging.get_dtype()
 
     dtype_size_bytes = np.dtype(dtype).itemsize
     num_pixels = imaging.get_num_pixels()
 
-    file_path_dict = {segment_index: file_path for segment_index, file_path in enumerate(file_path_list)}
+    file_path_dict = {
+        segment_index: file_path
+        for segment_index, file_path in enumerate(file_path_list)
+    }
     for segment_index, file_path in file_path_dict.items():
         num_frames = imaging.get_num_samples(segment_index=segment_index)
         data_size_bytes = dtype_size_bytes * num_frames * num_pixels
@@ -110,9 +121,17 @@ def write_binary_imaging(
     init_func = _init_binary_worker
     init_args = (imaging, file_path_dict, dtype, byte_offset)
     executor = ChunkExecutor(
-        imaging, func, init_func, init_args, job_name="write_binary_imaging", verbose=verbose, **job_kwargs
+        imaging,
+        func,
+        init_func,
+        init_args,
+        job_name="write_binary_imaging",
+        verbose=verbose,
+        **job_kwargs,
     )
     executor.run()
 
 
-write_binary_imaging.__doc__ = write_binary_imaging.__doc__.format(_shared_job_kwargs_doc)
+write_binary_imaging.__doc__ = write_binary_imaging.__doc__.format(
+    _shared_job_kwargs_doc
+)

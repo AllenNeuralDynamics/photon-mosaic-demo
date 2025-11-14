@@ -11,13 +11,20 @@ import numpy as np
 from .baseimaging import BaseImaging, BaseImagingSegment
 from .numpyimaging import NumpyImaging
 
+
 def _gaussian(x, mu, sigma):
     """Compute classical gaussian with parameters x, mu, sigma."""
     return 1 / np.sqrt(2 * np.pi * sigma) * np.exp(-((x - mu) ** 2) / sigma)
 
 
 def _generate_rois(
-    num_units=10, size_x=100, size_y=100, roi_size=4, min_dist=5, mode="uniform", seed=None
+    num_units=10,
+    size_x=100,
+    size_y=100,
+    roi_size=4,
+    min_dist=5,
+    mode="uniform",
+    seed=None,
 ):  # TODO: mode --> literal type
     """Generate ROIs with given parameters.
 
@@ -91,7 +98,9 @@ def _generate_rois(
                     if mode == "uniform":
                         image[i, j] = 1
                     elif mode == "gaussian":
-                        image[i, j] = _gaussian(i, mean[0], roi_size) + _gaussian(j, mean[1], roi_size)
+                        image[i, j] = _gaussian(i, mean[0], roi_size) + _gaussian(
+                            j, mean[1], roi_size
+                        )
                     else:
                         raise Exception("'mode' can be 'uniform' or 'gaussian'")
         roi_pixels.append(np.array(pixels))
@@ -101,20 +110,27 @@ def _generate_rois(
 
 class NoiseGeneratorImaging(BaseImaging):
 
-    def __init__(self, sampling_frequency=30, durations=[10], width=100, height=100, noise_std=0.05, seed=None, **noise_kwargs):
+    def __init__(
+        self,
+        sampling_frequency=30,
+        durations=[10],
+        width=100,
+        height=100,
+        noise_std=0.05,
+        seed=None,
+        **noise_kwargs,
+    ):
         from spikeinterface.core.generate import NoiseGeneratorRecording
-        super().__init__(
-            sampling_frequency=sampling_frequency,
-            shape=(width, height)
-        )
+
+        super().__init__(sampling_frequency=sampling_frequency, shape=(width, height))
         self.noise_generator_recording = NoiseGeneratorRecording(
             num_channels=self.get_num_pixels(),
-            sampling_frequency = sampling_frequency,
-            durations = durations,
-            noise_levels = noise_std,
+            sampling_frequency=sampling_frequency,
+            durations=durations,
+            noise_levels=noise_std,
             seed=seed,
             noise_block_size=100,
-            **noise_kwargs
+            **noise_kwargs,
         )
         seed = self.noise_generator_recording._kwargs["seed"]
 
@@ -124,20 +140,20 @@ class NoiseGeneratorImaging(BaseImaging):
                     sampling_frequency=sampling_frequency,
                     noise_generator=self.noise_generator_recording,
                     segment_index=segment_index,
-                    image_shape=self.image_shape
+                    image_shape=self.image_shape,
                 )
             )
 
         self._kwargs = dict(
             sampling_frequency=sampling_frequency,
-            durations=durations, 
+            durations=durations,
             width=width,
             height=height,
-            noise_std=noise_std, 
-            seed=seed
+            noise_std=noise_std,
+            seed=seed,
         )
         self._kwargs.update(noise_kwargs)
-        
+
 
 class NoiseGeneratorImagingSegment(BaseImagingSegment):
 
@@ -154,13 +170,14 @@ class NoiseGeneratorImagingSegment(BaseImagingSegment):
         traces = self.noise_generator.get_traces(
             start_frame=start_frame,
             end_frame=end_frame,
-            segment_index=self.segment_index
+            segment_index=self.segment_index,
         )
         video_shape = (traces.shape[0], self.image_shape[0], self.image_shape[1])
         return traces.reshape(video_shape)
 
+
 class GroundTruthImaging(BaseImaging):
-    
+
     def __init__(
         self,
         durations=[10],
@@ -174,16 +191,16 @@ class GroundTruthImaging(BaseImaging):
         sorting_sampling_frequency=30_000,
         decay_time=0.5,
         noise_std=0.05,
-        seed=None
+        seed=None,
     ):
         from spikeinterface.core.generate import generate_sorting
 
         if seed is None:
             seed = np.random.default_rng(seed=None).integers(0, 2**63)
 
-        assert np.mod(sorting_sampling_frequency, sampling_frequency) == 0, (
-            "sorting_sampling_frequency needs to be a multiple of sorting_frequency"
-        )
+        assert (
+            np.mod(sorting_sampling_frequency, sampling_frequency) == 0
+        ), "sorting_sampling_frequency needs to be a multiple of sorting_frequency"
 
         # generate ROIs
         num_rois = int(num_rois)
@@ -194,7 +211,7 @@ class GroundTruthImaging(BaseImaging):
             roi_size=roi_size,
             min_dist=min_dist,
             mode=mode,
-            seed=seed
+            seed=seed,
         )
 
         self.noise_generator = NoiseGeneratorImaging(
@@ -202,12 +219,14 @@ class GroundTruthImaging(BaseImaging):
             width=width,
             height=height,
             noise_std=noise_std,
-            seed=seed
+            seed=seed,
         )
-        
+
         self.sorting = generate_sorting(
-            durations=durations, num_units=num_rois, sampling_frequency=sorting_sampling_frequency,
-            seed=seed
+            durations=durations,
+            num_units=num_rois,
+            sampling_frequency=sorting_sampling_frequency,
+            seed=seed,
         )
 
         self.noise_generator = NoiseGeneratorImaging(
@@ -226,7 +245,9 @@ class GroundTruthImaging(BaseImaging):
         kernel = np.exp(-tresp / resp_tau)
 
         # add single segment
-        for segment_index, noise_segment in enumerate(self.noise_generator._imaging_segments):
+        for segment_index, noise_segment in enumerate(
+            self.noise_generator._imaging_segments
+        ):
             gt_segment = GroundTruthImagingSegment(
                 sampling_frequency=sampling_frequency,
                 noise_segment=noise_segment,
@@ -234,7 +255,7 @@ class GroundTruthImaging(BaseImaging):
                 sorting=self.sorting,
                 roi_pixels=roi_pixels,
                 roi_values=roi_values,
-                kernel=kernel
+                kernel=kernel,
             )
             self.add_imaging_segment(gt_segment)
 
@@ -263,7 +284,7 @@ class GroundTruthImagingSegment(BaseImagingSegment):
         roi_pixels,
         roi_values,
         kernel,
-        min_samples=10
+        min_samples=10,
     ):
         super().__init__(sampling_frequency=sampling_frequency)
         self.noise_segment = noise_segment
@@ -272,7 +293,9 @@ class GroundTruthImagingSegment(BaseImagingSegment):
         self.roi_pixels = roi_pixels
         self.roi_values = roi_values
         self.kernel_high_res = kernel
-        self.decimation_factor = int(self.sorting.sampling_frequency // self.sampling_frequency)
+        self.decimation_factor = int(
+            self.sorting.sampling_frequency // self.sampling_frequency
+        )
         self.min_samples = min_samples
 
     def get_num_samples(self):
@@ -283,12 +306,14 @@ class GroundTruthImagingSegment(BaseImagingSegment):
             end_frame_ = self.min_samples - (end_frame - start_frame)
         else:
             end_frame_ = end_frame
-            
+
         noise = self.noise_segment.get_series(start_frame, end_frame_)
         fluo_hr = np.zeros(
-            (len(self.roi_pixels), (end_frame_ - start_frame) *  self.decimation_factor)
+            (len(self.roi_pixels), (end_frame_ - start_frame) * self.decimation_factor)
         )
-        t_start = max(0, start_frame / self.sampling_frequency) # - self.kernel_duration)
+        t_start = max(
+            0, start_frame / self.sampling_frequency
+        )  # - self.kernel_duration)
         t_stop = end_frame_ / self.sampling_frequency
         sorting_sliced = self.sorting.time_slice(t_start, t_stop)
         resp = self.kernel_high_res
@@ -298,14 +323,18 @@ class GroundTruthImagingSegment(BaseImagingSegment):
                 unit_id,
                 segment_index=self.segment_index,
             )
-            for spike_index in spike_train:  # TODO build a local function that generates frames with spikes
+            for (
+                spike_index
+            ) in (
+                spike_train
+            ):  # TODO build a local function that generates frames with spikes
                 if spike_index + len(resp) < num_hr_frames:
                     fluo_hr[u_i, spike_index : spike_index + len(resp)] += resp
                 else:
                     fluo_hr[u_i, spike_index:] = resp[: num_hr_frames - spike_index]
 
         # now decimate
-        fluo_traces = fluo_hr[:, ::self.decimation_factor]
+        fluo_traces = fluo_hr[:, :: self.decimation_factor]
 
         # generate video
         fluo_video = np.zeros((noise.shape))
@@ -314,11 +343,11 @@ class GroundTruthImagingSegment(BaseImagingSegment):
                 fluo_video[:, *pixel] += fluo_trace * self.roi_values[*pixel]
 
         video = fluo_video + noise
-        return video[:(end_frame - start_frame)]
+        return video[: (end_frame - start_frame)]
 
 
 generate_gt_video = GroundTruthImaging
-        
+
 
 def generate_ground_truth_video(
     duration=10,
@@ -379,7 +408,9 @@ def generate_ground_truth_video(
 
     from spikeinterface.core import generate_sorting
 
-    sort = generate_sorting(durations=[duration], num_units=num_rois, sampling_frequency=sampling_frequency)
+    sort = generate_sorting(
+        durations=[duration], num_units=num_rois, sampling_frequency=sampling_frequency
+    )
 
     # create decaying response
     resp_samples = int(decay_time * sampling_frequency)
@@ -391,12 +422,18 @@ def generate_ground_truth_video(
 
     # convolve response with ROIs
     # TODO: optimize this and make it lazy
-    raw = np.zeros((num_rois, num_frames))  # TODO Change to new standard formatting with time in first axis
-    deconvolved = np.zeros((num_rois, num_frames))  # TODO Change to new standard formatting with time in first axis
+    raw = np.zeros(
+        (num_rois, num_frames)
+    )  # TODO Change to new standard formatting with time in first axis
+    deconvolved = np.zeros(
+        (num_rois, num_frames)
+    )  # TODO Change to new standard formatting with time in first axis
     frames = num_frames
     for u_i in range(num_rois):
         unit_id = sort.unit_ids[u_i]
-        for s in sort.get_unit_spike_train(unit_id):  # TODO build a local function that generates frames with spikes
+        for s in sort.get_unit_spike_train(
+            unit_id
+        ):  # TODO build a local function that generates frames with spikes
             if s < num_frames:
                 if s + len(resp) < frames:
                     raw[u_i, s : s + len(resp)] += resp
