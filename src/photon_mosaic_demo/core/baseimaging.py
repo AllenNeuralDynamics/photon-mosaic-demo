@@ -170,6 +170,9 @@ class BaseImaging(BaseExtractor):
         end_frame = end_frame if end_frame is not None else self.get_num_samples(segment_index=segment_index)
         return self._imaging_segments[segment_index].get_series(start_frame, end_frame)
 
+    def get_average_image(self, series: np.ndarray, axis: int = 0) -> np.ndarray:
+        return np.mean(series, axis=axis)
+    
     def add_imaging_segment(self, imaging_segment):
         """Adds an imaging segment.
 
