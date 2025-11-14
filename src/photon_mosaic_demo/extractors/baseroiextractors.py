@@ -2,6 +2,7 @@
 from pathlib import Path
 
 from ..core import BaseImaging, BaseImagingSegment
+import numpy as np
 
 from roiextractors.extractorlist import imaging_extractor_dict
 from roiextractors.imagingextractor import ImagingExtractor
@@ -17,7 +18,7 @@ class BaseROIExtractorImaging(BaseImaging):
     ----------
     imaging_name : str
         The name of the imaging extractor from roiextractors.imaging_extractor_dict.
-        Examples: "ScanImageImaging", "TiffImaging", "BrukerTiffImaging", etc.
+        Examples: "ScanImageImagingExtractor", "TiffImagingExtractor", "BrukerTiffImagingExtractor", etc.
     **kwargs
         Additional keyword arguments passed to the roiextractors imaging class.
         These vary by format (e.g., file_path, channel_name, etc.)
@@ -26,7 +27,7 @@ class BaseROIExtractorImaging(BaseImaging):
     --------
     Load a ScanImage TIFF file:
     >>> imaging = BaseROIExtractorImaging(
-    ...     imaging_name="ScanImageImaging",
+    ...     imaging_name="ScanImageImagingExtractor",
     ...     file_path="path/to/data.tif",
     ...     channel_name="Channel 1"
     ... )
@@ -34,7 +35,7 @@ class BaseROIExtractorImaging(BaseImaging):
     
     Load a standard TIFF file:
     >>> imaging = BaseROIExtractorImaging(
-    ...     imaging_name="TiffImaging",
+    ...     imaging_name="TiffImagingExtractor",
     ...     file_path="path/to/data.tif"
     ... )
     """
@@ -68,8 +69,7 @@ class BaseROIExtractorImagingSegment(BaseImagingSegment):
 
     def get_series(self, start_frame = None, end_frame = None):
         return self.roiextractor_extractor.get_series(start_frame, end_frame)
-
-
+    
 def auto_add_roiextractor_methods():
     """Automatically add all methods from ImagingExtractor to BaseROIExtractorImagingSegment.
     """
