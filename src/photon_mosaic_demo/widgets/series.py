@@ -90,10 +90,9 @@ class ImagingSeriesWidget(BaseWidget):
         
         # Calculate global contrast range from multiple frames for consistent colorbar
         # Sample frames throughout the video to get representative range
-        num_samples = min(10, dp.num_frames)
-        sample_indices = np.linspace(0, dp.num_frames - 1, num_samples, dtype=int)
-        sample_frames = dp.imaging.get_series(int(sample_indices[0]), int(sample_indices[-1]) + 1, segment_index=dp.segment_index)
-        sampled_data = sample_frames[sample_indices - sample_indices[0]]
+        num_samples = 100
+        # TODO: get_random_frames insted
+        sampled_data = dp.imaging.get_series(0, num_samples, segment_index=dp.segment_index)
         
         # Calculate global percentiles for fixed colorbar range
         self.global_vmin = np.percentile(sampled_data, dp.vmin_percentile)
@@ -103,7 +102,8 @@ class ImagingSeriesWidget(BaseWidget):
         cm = 1 / 2.54
         width_cm = backend_kwargs.get("width_cm", 15)
         height_cm = backend_kwargs.get("height_cm", 12)
-        
+
+        # add some caching here
         # Turn off interactive mode to prevent duplicate display
         with plt.ioff():
             # Create figure - this will use the widget backend

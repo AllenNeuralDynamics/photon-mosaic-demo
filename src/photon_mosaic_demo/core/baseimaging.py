@@ -1,13 +1,16 @@
+from typing import Optional
 import numpy as np
 from numpy.typing import ArrayLike, DTypeLike
 from math import prod
+import warnings
 
 
 from roiextractors.core_utils import _convert_bytes_to_str, _convert_seconds_to_str
 from spikeinterface.core.base import BaseExtractor, BaseSegment
 
-
+from .imaging_tools import write_binary_imaging
 # TODO: frames instead of samples
+# TODO: epoch instead of segment (segmentation is another thing)
 
 class BaseImaging(BaseExtractor):
     """Base class for imaging extractors."""
@@ -92,6 +95,9 @@ class BaseImaging(BaseExtractor):
     def sampling_frequency(self):
         return self._sampling_frequency
 
+    def get_sampling_frequency(self):
+        return self._sampling_frequency
+
     def get_num_samples(self, segment_index: int | None = None) -> int:
         """Get the total number of samples (frames) in the imaging data.
 
@@ -111,6 +117,13 @@ class BaseImaging(BaseExtractor):
         return self._imaging_segments[segment_index].get_num_samples()
 
     def get_num_segments(self) -> int:
+        """Get the number of imaging segments.
+        
+        Returns
+        -------
+        int
+            The number of imaging segments.
+        """
         return len(self._imaging_segments)
 
     def get_dtype(self) -> DTypeLike:
@@ -122,6 +135,9 @@ class BaseImaging(BaseExtractor):
             Data type of the video.
         """
         return self.get_series(start_frame=0, end_frame=2, segment_index=0).dtype
+
+    def get_num_pixels(self) -> int:
+        return np.prod(self.image_shape)
 
     def get_series(self, start_frame: int | None = None, end_frame: int | None = None, segment_index: int | None = None) -> np.ndarray:
         """Get a series of frames from the imaging data.
@@ -196,6 +212,212 @@ class BaseImaging(BaseExtractor):
             else:
                 raise ValueError("segment_index must be provided for multi-segment imaging data.")
         self._imaging_segments[segment_index].time_vector = np.asarray(times)
+
+    def get_start_time(self, segment_index=None) -> float:
+        """Get the start time of the recording segment.
+
+        Parameters
+        ----------
+        segment_index : int or None, default: None
+            The segment index (required for multi-segment)
+
+        Returns
+        -------
+        float
+            The start time in seconds
+        """
+        segment_index = self._check_segment_index(segment_index)
+        rs = self._imaging_segments[segment_index]
+        return rs.get_start_time()
+
+    def get_end_time(self, segment_index=None) -> float:
+        """Get the stop time of the recording segment.
+
+        Parameters
+        ----------
+        segment_index : int or None, default: None
+            The segment index (required for multi-segment)
+
+        Returns
+        -------
+        float
+            The stop time in seconds
+        """
+        segment_index = self._check_segment_index(segment_index)
+        rs = self._imaging_segments[segment_index]
+        return rs.get_end_time()
+
+    def has_time_vector(self, segment_index: Optional[int] = None):
+        """Check if the segment of the recording has a time vector.
+
+        Parameters
+        ----------
+        segment_index : int or None, default: None
+            The segment index (required for multi-segment)
+
+        Returns
+        -------
+        bool
+            True if the recording has time vectors, False otherwise
+        """
+        segment_index = self._check_segment_index(segment_index)
+        rs = self._imaging_segments[segment_index]
+        d = rs.get_times_kwargs()
+        return d["time_vector"] is not None
+
+    def set_times(self, times, segment_index=None, with_warning=True):
+        """Set times for a recording segment.
+
+        Parameters
+        ----------
+        times : 1d np.array
+            The time vector
+        segment_index : int or None, default: None
+            The segment index (required for multi-segment)
+        with_warning : bool, default: True
+            If True, a warning is printed
+        """
+        segment_index = self._check_segment_index(segment_index)
+        rs = self._imaging_segments[segment_index]
+
+        assert times.ndim == 1, "Time must have ndim=1"
+        assert rs.get_num_samples() == times.shape[0], "times have wrong shape"
+
+        rs.t_start = None
+        rs.time_vector = times.astype("float64", copy=False)
+
+        if with_warning:
+            warnings.warn(
+                "Setting times with Recording.set_times() is not recommended because "
+                "times are not always propagated across preprocessing"
+                "Use this carefully!"
+            )
+
+    def reset_times(self):
+        """
+        Reset time information in-memory for all segments that have a time vector.
+        If the timestamps come from a file, the files won't be modified. but only the in-memory
+        attributes of the recording objects are deleted. Also `t_start` is set to None and the
+        segment's sampling frequency is set to the recording's sampling frequency.
+        """
+        for segment_index in range(self.get_num_segments()):
+            rs = self._imaging_segments[segment_index]
+            if self.has_time_vector(segment_index):
+                rs.time_vector = None
+            rs.t_start = None
+            rs.sampling_frequency = self.sampling_frequency
+
+    def shift_times(self, shift: int | float, segment_index: int | None = None) -> None:
+        """
+        Shift all times by a scalar value.
+
+        Parameters
+        ----------
+        shift : int | float
+            The shift to apply. If positive, times will be increased by `shift`.
+            e.g. shifting by 1 will be like the recording started 1 second later.
+            If negative, the start time will be decreased i.e. as if the recording
+            started earlier.
+
+        segment_index : int | None
+            The segment on which to shift the times.
+            If `None`, all segments will be shifted.
+        """
+        if segment_index is None:
+            segments_to_shift = range(self.get_num_segments())
+        else:
+            segments_to_shift = (segment_index,)
+
+        for segment_index in segments_to_shift:
+            rs = self._imaging_segments[segment_index]
+
+            if self.has_time_vector(segment_index=segment_index):
+                rs.time_vector += shift
+            else:
+                new_start_time = 0 + shift if rs.t_start is None else rs.t_start + shift
+                rs.t_start = new_start_time
+
+    def sample_index_to_time(self, sample_ind, segment_index=None):
+        """
+        Transform sample index into time in seconds
+        """
+        segment_index = self._check_segment_index(segment_index)
+        rs = self._imaging_segments[segment_index]
+        return rs.sample_index_to_time(sample_ind)
+
+    def time_to_sample_index(self, time_s, segment_index=None):
+        segment_index = self._check_segment_index(segment_index)
+        rs = self._imaging_segments[segment_index]
+        return rs.time_to_sample_index(time_s)
+
+    def _get_t_starts(self):
+        # handle t_starts
+        t_starts = []
+        for rs in self._imaging_segments:
+            d = rs.get_times_kwargs()
+            t_starts.append(d["t_start"])
+
+        if all(t_start is None for t_start in t_starts):
+            t_starts = None
+        return t_starts
+
+    def _get_time_vectors(self):
+        time_vectors = []
+        for rs in self._imaging_segments:
+            d = rs.get_times_kwargs()
+            time_vectors.append(d["time_vector"])
+        if all(time_vector is None for time_vector in time_vectors):
+            time_vectors = None
+        return time_vectors
+
+
+    def _save(self, format="binary", verbose: bool = False, **save_kwargs):
+        from spikeinterface.core.job_tools import split_job_kwargs
+
+        kwargs, job_kwargs = split_job_kwargs(save_kwargs)
+
+        if format == "binary":
+            folder = kwargs["folder"]
+            file_paths = [folder / f"traces_cached_seg{i}.raw" for i in range(self.get_num_segments())]
+            dtype = kwargs.get("dtype", None) or self.get_dtype()
+            t_starts = self._get_t_starts()
+
+            write_binary_imaging(self, file_paths=file_paths, dtype=dtype, verbose=verbose, **job_kwargs)
+
+            from .binaryimaging import BinaryImaging, BinaryFolderImaging
+
+            # This is created so it can be saved as json because the `BinaryFolderRecording` requires it loading
+            # See the __init__ of `BinaryFolderRecording`
+            binary_imaging = BinaryImaging(
+                file_paths=file_paths,
+                sampling_frequency=self.get_sampling_frequency(),
+                image_shape=self.image_shape,
+                dtype=dtype,
+                t_starts=t_starts,
+                file_offset=0,
+            )
+            binary_imaging.dump(folder / "binary.json", relative_to=folder)
+
+            cached = BinaryFolderImaging(folder_path=folder)
+
+        elif format == "memory":
+            raise NotImplementedError
+        elif format == "zarr":
+            raise NotImplementedError
+        elif format == "nwb":
+            # TODO implement a format based on zarr
+            raise NotImplementedError
+
+        else:
+            raise ValueError(f"format {format} not supported")
+
+        for segment_index in range(self.get_num_segments()):
+            if self.has_time_vector(segment_index):
+                # the use of get_times is preferred since timestamps are converted to array
+                time_vector = self.get_times(segment_index=segment_index)
+                cached.set_times(time_vector, segment_index=segment_index)
+
+        return cached
 
 
 class BaseImagingSegment(BaseSegment):
