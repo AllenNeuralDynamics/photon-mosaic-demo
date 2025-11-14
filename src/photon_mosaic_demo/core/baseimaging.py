@@ -90,6 +90,11 @@ class BaseImaging(BaseExtractor):
         """
         return self._image_shape
 
+    def get_image_shape(self):
+        return self._image_shape
+
+    def get_sample_size(self):
+        return self.get_num_pixels() * np.dtype(self.get_dtype()).itemsize
 
     @property
     def sampling_frequency(self):

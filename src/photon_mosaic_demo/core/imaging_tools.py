@@ -6,7 +6,7 @@ from spikeinterface.core.core_tools import add_suffix
 
 
 from .utils import PathType, DTypeLike
-from .job_tools import ChunkImagingExecutor
+from .job_tools import ChunkExecutor
 
 
 # used by write_binary_recording + ChunkRecordingExecutor
@@ -109,7 +109,7 @@ def write_binary_imaging(
     func = _write_binary_chunk
     init_func = _init_binary_worker
     init_args = (imaging, file_path_dict, dtype, byte_offset)
-    executor = ChunkImagingExecutor(
+    executor = ChunkExecutor(
         imaging, func, init_func, init_args, job_name="write_binary_imaging", verbose=verbose, **job_kwargs
     )
     executor.run()
