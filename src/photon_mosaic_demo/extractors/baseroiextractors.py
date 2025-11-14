@@ -97,7 +97,7 @@ def auto_add_roiextractor_methods():
             )
 
 
-def read_imaging(
+def get_imaging_extractor(
     file_path: str, imaging_name: str | None = None, **kwargs
 ) -> BaseROIExtractorImaging:
     """Automatically detect and load imaging data from a file.
