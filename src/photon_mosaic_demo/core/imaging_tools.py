@@ -6,7 +6,7 @@ from spikeinterface.core.core_tools import add_suffix
 
 
 from .utils import PathType, DTypeLike
-from .job_tools import ChunkExecutor
+from .job_tools import ChunkRecordingExecutor
 
 
 # used by write_binary_recording + ChunkRecordingExecutor
