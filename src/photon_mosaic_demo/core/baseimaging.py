@@ -24,7 +24,7 @@ class BaseImaging(BaseExtractor):
         self._image_shape = np.array(shape)
         self._imaging_segments: list[BaseImagingSegment] = []
 
-    def _repr_text(self, display_name=True):
+    def _repr_header(self, display_name=True):
         """Generate text representation of the BaseImaging object."""
         num_samples = [self.get_num_samples(segment_index=i) for i in range(self.get_num_segments())]
         image_shape = self.image_shape
@@ -50,34 +50,51 @@ class BaseImaging(BaseExtractor):
             duration_repr = duration_repr[0]
             memory_repr = memory_repr[0]
 
+        if display_name and self.name != self.__class__.__name__:
+            name = f"{self.name} ({self.__class__.__name__})"
+        else:
+            name = self.__class__.__name__
+
         # Format shape string based on whether data is volumetric or not
         image_shape_repr = f"{image_shape[0]} rows x {image_shape[1]} columns "
         return (
-            f"{self.name}\n"
-            f"  Number of segments: {self.get_num_segments()} \n"
-            f"  Sample shape: {image_shape_repr} \n"
-            f"  Number of samples: {num_samples:,} \n"
-            f"  Sampling rate: {sampling_frequency_repr}\n"
-            f"  Duration: {duration_repr}\n"
-            f"  Imaging data memory: {memory_repr} ({dtype} dtype)"
+            f"{name}:\n"
+            f"{sampling_frequency_repr} - "
+            f"{self.get_num_segments()} segments - "
+            f"{image_shape_repr} samples - "
+            f"{duration_repr} - "
+            f"{dtype} dtype - "
+            f"{memory_repr}"
         )
 
     def __repr__(self):
-        return self._repr_text()
+        return self._repr_header()
 
-    # def _repr_html_(self, display_name=True):
-    #     common_style = "margin-left: 10px;"
-    #     border_style = "border:1px solid #ddd; padding:10px;"
+    def _repr_html_(self, display_name=True):
+        common_style = "margin-left: 10px;"
+        border_style = "border:1px solid #ddd; padding:10px;"
 
-    #     html_header = f"<div style='{border_style}'><strong>{self._repr_header(display_name)}</strong></div>"
+        html_header = f"<div style='{border_style}'><strong>{self._repr_header(display_name)}</strong></div>"
 
-    #     html_unit_ids = f"<details style='{common_style}'>  <summary><strong>Unit IDs</strong></summary><ul>"
-    #     html_unit_ids += f"{self.unit_ids} </details>"
+        html_segments = ""
+        if self.get_num_segments() > 1:
+            html_segments += f"<details style='{common_style}'>  <summary><strong>Segments</strong></summary><ol>"
+            for segment_index in range(self.get_num_segments()):
+                samples = self.get_num_samples(segment_index)
+                duration = self.get_duration(segment_index)
+                memory_size = self.get_memory_size(segment_index)
+                samples_str = f"{samples:,}"
+                duration_str = _convert_seconds_to_str(duration)
+                memory_size_str = _convert_bytes_to_str(memory_size)
+                html_segments += (
+                    f"<li> Samples: {samples_str}, Duration: {duration_str}, Memory: {memory_size_str}</li>"
+                )
 
-    #     html_extra = self._get_common_repr_html(common_style)
+            html_segments += "</ol></details>"
 
-    #     html_repr = html_header + html_unit_ids + html_extra
-    #     return html_repr
+        html_extra = self._get_common_repr_html(common_style)
+        html_repr = html_header + html_segments  + html_extra
+        return html_repr
 
     @property
     def image_shape(self):
@@ -93,7 +110,7 @@ class BaseImaging(BaseExtractor):
     def get_image_shape(self):
         return self._image_shape
 
-    def get_sample_size(self):
+    def get_sample_size_in_bytes(self):
         return self.get_num_pixels() * np.dtype(self.get_dtype()).itemsize
 
     @property
