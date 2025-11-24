@@ -1,0 +1,3 @@
+from .baseroiextractors import BaseROIExtractorImaging, auto_add_roiextractor_methods
+
+auto_add_roiextractor_methods()
