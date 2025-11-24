@@ -8,7 +8,6 @@ import subprocess
 import tempfile
 from datetime import datetime as dt
 from functools import partial
-from glob import glob
 from itertools import product
 from multiprocessing.pool import ThreadPool
 from pathlib import Path

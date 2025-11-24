@@ -8,13 +8,11 @@ NumpySegmentationExtractor
     A Segmentation extractor specified by image masks and traces .npy files.
 """
 
-from pathlib import Path
-from warnings import warn
 
 import numpy as np
 
 from .baseimaging import BaseImaging, BaseImagingSegment
-from .utils import ArrayType, FloatType, PathType
+from .utils import ArrayType, FloatType
 
 
 class NumpyImaging(BaseImaging):

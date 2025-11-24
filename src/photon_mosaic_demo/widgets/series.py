@@ -73,7 +73,6 @@ class ImagingSeriesWidget(BaseWidget):
     def plot_ipywidgets(self, data_plot, **backend_kwargs):
         """Interactive ipywidgets plot with video controls."""
         import matplotlib.pyplot as plt
-        import ipywidgets as widgets
         from IPython.display import display
         from spikeinterface.widgets.utils_ipywidgets import check_ipywidget_backend
 

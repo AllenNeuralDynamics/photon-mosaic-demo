@@ -1,8 +1,6 @@
-from math import prod
 
 import numpy as np
-from numpy.typing import ArrayLike, DTypeLike
-from roiextractors.core_utils import _convert_bytes_to_str, _convert_seconds_to_str
+from numpy.typing import ArrayLike
 from spikeinterface.core.base import BaseExtractor, BaseSegment
 
 

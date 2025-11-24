@@ -1,6 +1,3 @@
-import re
-from roiextractors.extractorlist import imaging_extractor_dict
-
 # Import base classes
 from photon_mosaic_demo.extractors.baseroiextractors import (
     BaseROIExtractorImaging,
@@ -16,6 +13,7 @@ __all__ = [
 ]
 
 # Dynamically create classes and read functions for all imaging extractors
+from roiextractors.extractorlist import imaging_extractor_dict
 for imaging_name, imaging_class in imaging_extractor_dict.items():
     # Dynamically create a class for each imaging extractor
     # The class inherits from BaseROIExtractorImaging and sets imaging_name automatically
@@ -60,7 +58,6 @@ for imaging_name, imaging_class in imaging_extractor_dict.items():
     def make_read_function(cls, extractor_cls):
         """Factory function to create a read function with proper closure and signature."""
         import inspect
-        from functools import wraps
 
         # Get the signature from the original extractor class
         try:
@@ -85,6 +82,8 @@ for imaging_name, imaging_class in imaging_extractor_dict.items():
         read_function.__signature__ = inspect.Signature(parameters=params)
 
         return read_function
+
+    import re
 
     # Create and add the read function
     # Convert CamelCase to snake_case, handling consecutive capitals like TIFF
