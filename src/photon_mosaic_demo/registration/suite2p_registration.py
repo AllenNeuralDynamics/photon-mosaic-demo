@@ -50,6 +50,7 @@ from photon_mosaic_demo.registration.reference_image import (
     tiff_to_numpy,
     update_suite2p_args_reference_image,
 )
+
 mpl.use("Agg")
 
 
@@ -60,9 +61,7 @@ def is_S3(file_path: str):
     file_path : str
         Location of the file.
     """
-    return "s3fs" in subprocess.check_output(
-        "df " + file_path + "| sed -n '2 p'", shell=True, text=True
-    )
+    return "s3fs" in subprocess.check_output("df " + file_path + "| sed -n '2 p'", shell=True, text=True)
 
 
 def h5py_byteorder_name(h5py_file: h5py.File, h5py_key: str) -> Tuple[str, str]:
@@ -145,26 +144,18 @@ def combine_images_with_individual_titles(
     title_height = 50  # Space for the titles
 
     # Calculate dimensions of the combined image
-    combined_width = (
-        img1.width + img2.width + padding * 3
-    )  # Padding between and around images
+    combined_width = img1.width + img2.width + padding * 3  # Padding between and around images
     combined_height = max_height + padding * 2 + title_height
 
     # Create a new blank image with padding and room for the titles
-    combined_image = Image.new(
-        "RGB", (combined_width, combined_height), (255, 255, 255)
-    )
+    combined_image = Image.new("RGB", (combined_width, combined_height), (255, 255, 255))
 
     # Draw the titles
     draw = ImageDraw.Draw(combined_image)
     try:
-        font = ImageFont.truetype(
-            "arial.ttf", 24
-        )  # You can replace with a path to your desired font
+        font = ImageFont.truetype("arial.ttf", 24)  # You can replace with a path to your desired font
     except IOError:
-        font = (
-            ImageFont.load_default()
-        )  # Fallback to default font; may not match expected size
+        font = ImageFont.load_default()  # Fallback to default font; may not match expected size
 
     # Title 1: Above the second image
     bbox1 = draw.textbbox((0, 0), title1, font=font)
@@ -214,11 +205,7 @@ def serialize_registration_summary_qcmetric(output_dir: Path) -> None:
         name=f"{unique_id} Registration Summary",
         description="Review the registration summary plot to ensure that the motion correction is accurate and sufficient.",
         reference=str(reference_filepath),
-        status_history=[
-            QCStatus(
-                evaluator="Pending review", timestamp=dt.now(), status=Status.PENDING
-            )
-        ],
+        status_history=[QCStatus(evaluator="Pending review", timestamp=dt.now(), status=Status.PENDING)],
         value=DropdownMetric(
             value=[],
             options=[
@@ -231,9 +218,7 @@ def serialize_registration_summary_qcmetric(output_dir: Path) -> None:
         ),
     )
 
-    with open(
-        Path(file_path.parent) / f"{unique_id}_registration_summary_metric.json", "w"
-    ) as f:
+    with open(Path(file_path.parent) / f"{unique_id}_registration_summary_metric.json", "w") as f:
         json.dump(json.loads(metric.model_dump_json()), f, indent=4)
 
 
@@ -271,11 +256,7 @@ def serialize_fov_quality_qcmetric(output_dir: Path) -> None:
         name=f"{unique_id} FOV Quality",
         description="Review the avg. and max. projections to ensure that the FOV quality is sufficient.",
         reference=str(reference_filepath),
-        status_history=[
-            QCStatus(
-                evaluator="Pending review", timestamp=dt.now(), status=Status.PENDING
-            )
-        ],
+        status_history=[QCStatus(evaluator="Pending review", timestamp=dt.now(), status=Status.PENDING)],
         value=DropdownMetric(
             value=["Quality is sufficient"],
             options=[
@@ -289,9 +270,7 @@ def serialize_fov_quality_qcmetric(output_dir: Path) -> None:
         ),
     )
 
-    with open(
-        Path(file_path.parent) / f"{unique_id}_fov_quality_metric.json", "w"
-    ) as f:
+    with open(Path(file_path.parent) / f"{unique_id}_fov_quality_metric.json", "w") as f:
         json.dump(json.loads(metric.model_dump_json()), f, indent=4)
 
 
@@ -349,10 +328,7 @@ def compute_crispness(
     -------
     crispness of mean image : List[float]
     """
-    return [
-        np.sqrt(np.sum(np.array(np.gradient(mean_image(m))) ** 2))
-        for m in (mov_raw, mov_corr)
-    ]
+    return [np.sqrt(np.sum(np.array(np.gradient(mean_image(m))) ** 2)) for m in (mov_raw, mov_corr)]
 
 
 def load_representative_sub_frames(
@@ -464,9 +440,7 @@ def create_ave_image(
         if end_idx > tot_frames:
             end_idx = tot_frames
         frames = input_frames[start_idx:end_idx]
-        frames, dy, dx, _, _, _, _ = register_frames(
-            refAndMasks=ref_image, frames=frames, ops=suite2p_args
-        )
+        frames, dy, dx, _, _, _, _ = register_frames(refAndMasks=ref_image, frames=frames, ops=suite2p_args)
         min_y = min(min_y, dy.min())
         max_y = max(max_y, dy.max())
         min_x = min(min_x, dx.min())
@@ -615,15 +589,8 @@ def find_movie_start_end_empty_frames(
     std_est = (quart_high - quart_low) / (2 * 0.6745)
 
     # Get the indexes of the frames that are found to be n_sigma deviating.
-    start_idxs = np.sort(
-        np.argwhere(means[:midpoint] < mean_of_frames - n_sigma * std_est)
-    ).flatten()
-    end_idxs = (
-        np.sort(
-            np.argwhere(means[midpoint:] < mean_of_frames - n_sigma * std_est)
-        ).flatten()
-        + midpoint
-    )
+    start_idxs = np.sort(np.argwhere(means[:midpoint] < mean_of_frames - n_sigma * std_est)).flatten()
+    end_idxs = np.sort(np.argwhere(means[midpoint:] < mean_of_frames - n_sigma * std_est)).flatten() + midpoint
 
     # Get the total number of these frames.
     lowside = len(start_idxs)
@@ -723,9 +690,7 @@ def projection_process(data: np.ndarray, projection: str = "max") -> np.ndarray:
     return normalize_array(proj)
 
 
-def identify_and_clip_outliers(
-    data: np.ndarray, med_filter_size: int, thresh: int
-) -> Tuple[np.ndarray, np.ndarray]:
+def identify_and_clip_outliers(data: np.ndarray, med_filter_size: int, thresh: int) -> Tuple[np.ndarray, np.ndarray]:
     """given data, identify the indices of outliers
     based on median filter detrending, and a threshold
 
@@ -751,9 +716,7 @@ def identify_and_clip_outliers(
     data_filtered = median_filter(data, med_filter_size, mode="nearest")
     detrended = data - data_filtered
     indices = np.argwhere(np.abs(detrended) > thresh).flatten()
-    data[indices] = np.clip(
-        data[indices], data_filtered[indices] - thresh, data_filtered[indices] + thresh
-    )
+    data[indices] = np.clip(data[indices], data_filtered[indices] - thresh, data_filtered[indices] + thresh)
     return data, indices
 
 
@@ -811,17 +774,12 @@ def write_data_process(
         end_date_time=end_time.isoformat(),
         input_location=str(raw_movie),
         output_location=str(motion_corrected_movie),
-        code_url=(
-            "https://github.com/AllenNeuralDynamics/"
-            "aind-ophys-motion-correction/tree/main/code"
-        ),
+        code_url=("https://github.com/AllenNeuralDynamics/" "aind-ophys-motion-correction/tree/main/code"),
         parameters=metadata,
     )
     if isinstance(output_dir, str):
         output_dir = Path(output_dir)
-    with open(
-        output_dir / f"{unique_id}_motion_correction_data_process.json", "w"
-    ) as f:
+    with open(output_dir / f"{unique_id}_motion_correction_data_process.json", "w") as f:
         json.dump(json.loads(data_proc.model_dump_json()), f, indent=4)
 
 
@@ -829,9 +787,7 @@ def check_trim_frames(data):
     """Make sure that if the user sets auto_remove_empty_frames
     and timing frames is already requested, raise an error.
     """
-    if data["auto_remove_empty_frames"] and (
-        data["trim_frames_start"] > 0 or data["trim_frames_end"] > 0
-    ):
+    if data["auto_remove_empty_frames"] and (data["trim_frames_start"] > 0 or data["trim_frames_end"] > 0):
         msg = (
             "Requested auto_remove_empty_frames but "
             "trim_frames_start > 0 or trim_frames_end > 0. Please "
@@ -843,9 +799,7 @@ def check_trim_frames(data):
     return data
 
 
-def make_png(
-    max_proj_path: Path, avg_proj_path: Path, summary_df: pd.DataFrame, dst_path: Path
-):
+def make_png(max_proj_path: Path, avg_proj_path: Path, summary_df: pd.DataFrame, dst_path: Path):
     """ """
     xo = np.abs(summary_df["x"]).max()
     yo = np.abs(summary_df["y"]).max()
@@ -886,15 +840,11 @@ def make_png(
     return dst_path
 
 
-def make_nonrigid_png(
-    output_path: Path, avg_proj_path: Path, summary_df: pd.DataFrame, dst_path: Path
-):
+def make_nonrigid_png(output_path: Path, avg_proj_path: Path, summary_df: pd.DataFrame, dst_path: Path):
     """ """
     nonrigid_y = np.array(list(map(eval, summary_df["nonrigid_y"])), dtype=np.float32)
     nonrigid_x = np.array(list(map(eval, summary_df["nonrigid_x"])), dtype=np.float32)
-    nonrigid_corr = np.array(
-        list(map(eval, summary_df["nonrigid_corr"])), dtype=np.float32
-    )
+    nonrigid_corr = np.array(list(map(eval, summary_df["nonrigid_corr"])), dtype=np.float32)
     ops = json.loads(h5py.File(output_path)["metadata"][()].decode())["suite2p_args"]
     with Image.open(avg_proj_path) as im:
         Ly, Lx = im.size
@@ -977,17 +927,11 @@ def downsample_normalize(
 
     """
     if isinstance(movie_path, Path):
-        ds = downsample_h5_video(
-            movie_path, input_fps=frame_rate, output_fps=1.0 / bin_size
-        )
+        ds = downsample_h5_video(movie_path, input_fps=frame_rate, output_fps=1.0 / bin_size)
     else:
-        ds = downsample_array(
-            movie_path, input_fps=frame_rate, output_fps=1.0 / bin_size
-        )
+        ds = downsample_array(movie_path, input_fps=frame_rate, output_fps=1.0 / bin_size)
     avg_projection = ds.mean(axis=0)
-    lower_cutoff, upper_cutoff = np.quantile(
-        avg_projection.flatten(), (lower_quantile, upper_quantile)
-    )
+    lower_cutoff, upper_cutoff = np.quantile(avg_projection.flatten(), (lower_quantile, upper_quantile))
     ds = normalize_array(ds, lower_cutoff=lower_cutoff, upper_cutoff=upper_cutoff)
     return ds
 
@@ -997,12 +941,7 @@ def flow_png(output_path: Path, dst_path: str, iPC: int = 0):
         regPC = f["reg_metrics/regPC"]
         tPC = f["reg_metrics/tPC"]
         flows = f["reg_metrics/farnebackROF"]
-        flow_ds = np.array(
-            [
-                cv2.resize(flows[iPC, :, :, a], dsize=None, fx=0.1, fy=0.1)
-                for a in (0, 1)
-            ]
-        )
+        flow_ds = np.array([cv2.resize(flows[iPC, :, :, a], dsize=None, fx=0.1, fy=0.1) for a in (0, 1)])
         flow_ds_norm = np.sqrt(np.sum(flow_ds**2, 0))
         # redo Suite2p's PCA-based frame selection
         n_frames, Ly, Lx = f["data"].shape
@@ -1018,9 +957,7 @@ def flow_png(output_path: Path, dst_path: str, iPC: int = 0):
                 np.sort(inds[isort[-nlowhigh:, iPC] if k else isort[:nlowhigh, iPC]]),
                 50,
             )
-            a[0].set_title(
-                "averaged frames for " + ("$PC_{high}$" if k else "$PC_{low}$")
-            )
+            a[0].set_title("averaged frames for " + ("$PC_{high}$" if k else "$PC_{low}$"))
             a[1].set_position([0, 0, 1, 0.9])
             vmin = np.min(regPC[1 if k else 0, iPC])
             vmax = 5 * np.median(regPC[1 if k else 0, iPC]) - 4 * vmin
@@ -1035,15 +972,11 @@ def flow_png(output_path: Path, dst_path: str, iPC: int = 0):
         f, a = plt.subplots(2, figsize=(5, 6))
         a[0].set_position([0.06, 0.95, 0.9, 0.05])
         a[1].set_position([0, 0, 1, 0.9])
-        im = a[1].quiver(
-            *flow_ds[:, ::-1], flow_ds_norm[::-1]
-        )  # imshow puts origin [0,0] in upper left
+        im = a[1].quiver(*flow_ds[:, ::-1], flow_ds_norm[::-1])  # imshow puts origin [0,0] in upper left
         a[1].axis("off")
         plt.colorbar(im, cax=a[0], location="bottom")
         a[0].set_title("residual optical flow")
-        plt.savefig(
-            dst_path + f"_PC{iPC}rof.png", format="png", dpi=300, bbox_inches="tight"
-        )
+        plt.savefig(dst_path + f"_PC{iPC}rof.png", format="png", dpi=300, bbox_inches="tight")
 
 
 def multiplane_motion_correction(data_dir: Path, output_dir: Path, debug: bool = False):
@@ -1085,13 +1018,9 @@ def multiplane_motion_correction(data_dir: Path, output_dir: Path, debug: bool =
         session_data = json.load(f)
     output_dir = make_output_directory(output_dir, unique_id)
     try:
-        frame_rate_hz = float(
-            session_data["data_streams"][0]["ophys_fovs"][0]["frame_rate"]
-        )
+        frame_rate_hz = float(session_data["data_streams"][0]["ophys_fovs"][0]["frame_rate"])
     except KeyError:
-        logging.warning(
-            "Frame rate not found in session.json, using default"
-        )
+        logging.warning("Frame rate not found in session.json, using default")
         frame_rate_hz = 30.0
     if debug:
         logging.info("Running in debug mode....")
@@ -1106,9 +1035,7 @@ def multiplane_motion_correction(data_dir: Path, output_dir: Path, debug: bool =
     return h5_file, output_dir, frame_rate_hz
 
 
-def singleplane_motion_correction(
-    h5_file: Path, output_dir: Path, session, unique_id: str, debug: bool = False
-):
+def singleplane_motion_correction(h5_file: Path, output_dir: Path, session, unique_id: str, debug: bool = False):
     """Process single plane data for suite2p parameters
 
     Parameters
@@ -1185,22 +1112,22 @@ def get_frame_rate(session: dict):
 
 class Suite2pMotionCorrection(BaseProcessor):
     """Suite2p-based motion correction processor.
-    
+
     This class provides motion correction functionality using the Suite2p
     registration algorithm, with additional quality control and visualization
     features.
     """
-    
+
     def __init__(
         self,
         input_dir: Path,
         output_dir: Path,
         settings: Optional[MotionCorrectionSettings] = None,
         debug: bool = False,
-        **kwargs
+        **kwargs,
     ):
         """Initialize the Suite2p motion correction processor.
-        
+
         Parameters
         ----------
         input_dir : Path
@@ -1215,13 +1142,13 @@ class Suite2pMotionCorrection(BaseProcessor):
             Additional keyword arguments
         """
         super().__init__(input_dir, output_dir, **kwargs)
-        
+
         # Parse settings if not provided
         if settings is None:
             self.settings = MotionCorrectionSettings()
         else:
             self.settings = settings
-            
+
         self.debug = debug
         self.session = None
         self.data_description = None
@@ -1230,23 +1157,23 @@ class Suite2pMotionCorrection(BaseProcessor):
         self.reference_image_fp = ""
         self.unique_id = ""
         self.input_file = ""
-        
+
     def _load_metadata(self) -> None:
         """Load session, data description, and subject metadata."""
         session_fp = next(self.input_dir.rglob("session.json"))
         description_fp = next(self.input_dir.rglob("data_description.json"))
         subject_fp = next(self.input_dir.rglob("subject.json"))
-        
+
         with open(session_fp, "r") as j:
             self.session = json.load(j)
         with open(description_fp, "r") as j:
             self.data_description = json.load(j)
         with open(subject_fp, "r") as j:
             self.subject = json.load(j)
-            
+
         # Extract frame rate
         self.frame_rate_hz = get_frame_rate(self.session)
-        
+
     def _setup_data_processing(self) -> None:
         """Set up data processing based on data type."""
         if self.settings.data_type == "TIFF":
@@ -1256,7 +1183,7 @@ class Suite2pMotionCorrection(BaseProcessor):
             except StopIteration:
                 self.input_file = next(self.input_dir.rglob("pophys"))
             self.output_dir = make_output_directory(self.output_dir, self.unique_id)
-            
+
         elif self.settings.data_type.lower() == "h5":
             self.unique_id = "MOp2_3_0"  # TODO: remove when upgrade to data-schema v2
             if "Bergamo" in self.session.get("rig_id", ""):
@@ -1275,14 +1202,11 @@ class Suite2pMotionCorrection(BaseProcessor):
                 self.output_dir = output_dir
                 self.frame_rate_hz = frame_rate_hz
         else:
-            raise ValueError(
-                f"Data type {self.settings.data_type} not supported. "
-                "Please use 'TIFF' or 'h5'."
-            )
-    
+            raise ValueError(f"Data type {self.settings.data_type} not supported. " "Please use 'TIFF' or 'h5'.")
+
     def _setup_arguments(self) -> tuple[dict, dict]:
         """Set up processing arguments and suite2p configuration.
-        
+
         Returns
         -------
         tuple[dict, dict]
@@ -1292,23 +1216,23 @@ class Suite2pMotionCorrection(BaseProcessor):
         args = vars(self.settings)
         args["input_dir"] = str(args["input_dir"])
         args["output_dir"] = str(args["output_dir"])
-        
+
         if not self.frame_rate_hz:
             self.frame_rate_hz = self.settings.frame_rate
             self.logger.warning("User input frame rate used. %s", self.frame_rate_hz)
-            
+
         args["refImg"] = []
         if self.reference_image_fp:
             args["refImg"] = [self.reference_image_fp]
-            
+
         # Construct output paths
         if self.settings.data_type == "TIFF":
             basename = self.unique_id
         else:
             basename = os.path.basename(self.input_file)
-            
+
         args["movie_frame_rate_hz"] = self.frame_rate_hz
-        
+
         # Set up output file paths
         for key, default in (
             ("motion_corrected_output", "_registered.h5"),
@@ -1319,10 +1243,8 @@ class Suite2pMotionCorrection(BaseProcessor):
             ("motion_correction_preview_output", "_motion_preview.webm"),
             ("output_json", "_motion_correction_output.json"),
         ):
-            args[key] = os.path.join(
-                str(self.output_dir), os.path.splitext(basename)[0] + default
-            )
-        
+            args[key] = os.path.join(str(self.output_dir), os.path.splitext(basename)[0] + default)
+
         # Hardcoded parameters
         args["movie_lower_quantile"] = 0.1
         args["movie_upper_quantile"] = 0.999
@@ -1335,17 +1257,17 @@ class Suite2pMotionCorrection(BaseProcessor):
         args["smooth_sigma_time_min"] = 0
         args["smooth_sigma_time_max"] = 6
         args["smooth_sigma_time_steps"] = 7
-        
+
         # Set up suite2p arguments
         suite2p_args = suite2p.default_ops()
-        
+
         if self.settings.data_type == "h5":
             suite2p_args["h5py"] = str(self.input_file)
         else:
             suite2p_args["data_path"] = str(self.input_file)
             suite2p_args["look_one_level_down"] = True
             suite2p_args["tiff_list"] = [str(i) for i in self.input_file.glob("*.tif*")]
-            
+
         # Configure suite2p parameters
         suite2p_args["roidetect"] = False
         suite2p_args["do_registration"] = self.settings.do_registration
@@ -1355,10 +1277,10 @@ class Suite2pMotionCorrection(BaseProcessor):
         suite2p_args["maxregshift"] = self.settings.maxregshift
         suite2p_args["maxregshiftNR"] = self.settings.maxregshiftNR
         suite2p_args["batch_size"] = self.settings.batch_size
-        
+
         if suite2p_args.get("h5py", ""):
             suite2p_args["h5py_key"] = "data"
-            
+
         suite2p_args["smooth_sigma"] = self.settings.smooth_sigma
         suite2p_args["smooth_sigma_time"] = self.settings.smooth_sigma_time
         suite2p_args["nonrigid"] = self.settings.nonrigid
@@ -1366,9 +1288,9 @@ class Suite2pMotionCorrection(BaseProcessor):
         suite2p_args["snr_thresh"] = self.settings.snr_thresh
         suite2p_args["refImg"] = args["refImg"]
         suite2p_args["force_refImg"] = args["force_refImg"]
-        
+
         return args, suite2p_args
-    
+
     def _preprocess_data(self, args: dict, suite2p_args: dict) -> None:
         """Preprocess data including S3 copying and datatype checks."""
         # Copy from S3 if needed
@@ -1378,7 +1300,7 @@ class Suite2pMotionCorrection(BaseProcessor):
                 self.logger.info(f"copying {suite2p_args['h5py']} from S3 bucket to {dst}")
                 shutil.copy(suite2p_args["h5py"], dst)
                 suite2p_args["h5py"] = dst
-                
+
         # Check data types
         if suite2p_args.get("tiff_list", ""):
             check_and_warn_on_datatype(
@@ -1393,12 +1315,10 @@ class Suite2pMotionCorrection(BaseProcessor):
                 filetype="h5",
                 h5py_key=suite2p_args["h5py_key"],
             )
-        
+
         # Handle empty frame removal
         if args["auto_remove_empty_frames"]:
-            self.logger.info(
-                "Attempting to find empty frames at the start and end of the movie."
-            )
+            self.logger.info("Attempting to find empty frames at the start and end of the movie.")
             if suite2p_args.get("tiff_list", ""):
                 lowside, highside = find_movie_start_end_empty_frames(
                     filepath=suite2p_args["tiff_list"],
@@ -1413,7 +1333,7 @@ class Suite2pMotionCorrection(BaseProcessor):
             args["trim_frames_start"] = lowside
             args["trim_frames_end"] = highside
             self.logger.info(f"Found ({lowside}, {highside}) at the start/end of the movie.")
-        
+
         # Handle reference image
         if suite2p_args["force_refImg"] and len(suite2p_args["refImg"]) == 0:
             suite2p_args, args = update_suite2p_args_reference_image(
@@ -1424,55 +1344,49 @@ class Suite2pMotionCorrection(BaseProcessor):
             suite2p_args, args = update_suite2p_args_reference_image(
                 suite2p_args, args, reference_image_fp=self.reference_image_fp
             )
-    
+
     def _run_suite2p_registration(self, suite2p_args: dict) -> tuple[str, str]:
         """Run suite2p registration and return paths to output files.
-        
+
         Returns
         -------
         tuple[str, str]
             Tuple of (bin_path, ops_path)
         """
         self.logger.info(f"attempting to motion correct {suite2p_args['h5py']}")
-        
+
         # Create temporary directory for Suite2P
         tmp_dir = tempfile.TemporaryDirectory(dir=self.settings.tmp_dir)
         tdir = tmp_dir.name
         suite2p_args["save_path0"] = tdir
         self.logger.info(f"Running Suite2P with output going to {tdir}")
-        
+
         # Log suite2p arguments (excluding refImg which can't be serialized)
         copy_of_args = copy.deepcopy(suite2p_args)
         copy_of_args.pop("refImg")
-        
+
         msg = f"running Suite2P v{suite2p.version} with args\n"
         msg += f"{json.dumps(copy_of_args, indent=2, sort_keys=True)}\n"
         self.logger.info(msg)
-        
+
         if suite2p_args["force_refImg"]:
             self.logger.info(f"\tUsing custom reference image: {suite2p_args['refImg']}")
-        
+
         if suite2p_args.get("h5py", ""):
             suite2p_args["h5py"] = suite2p_args["h5py"]
-        
+
         # Run Suite2P
         suite2p.run_s2p(suite2p_args)
-        
+
         # Get output paths
         bin_path = list(Path(tdir).rglob("data.bin"))[0]
         ops_path = list(Path(tdir).rglob("ops.npy"))[0]
-        
+
         return str(bin_path), str(ops_path)
-    
-    def _process_registration_output(
-        self, 
-        args: dict, 
-        suite2p_args: dict, 
-        bin_path: str, 
-        ops_path: str
-    ) -> np.ndarray:
+
+    def _process_registration_output(self, args: dict, suite2p_args: dict, bin_path: str, ops_path: str) -> np.ndarray:
         """Process suite2p registration output and create motion corrected movie.
-        
+
         Returns
         -------
         np.ndarray
@@ -1480,46 +1394,40 @@ class Suite2pMotionCorrection(BaseProcessor):
         """
         # Load suite2p output
         ops = np.load(ops_path, allow_pickle=True).item()
-        
+
         # Process outliers
         detrend_size = int(self.frame_rate_hz * args["outlier_detrend_window"])
         xlimit = int(ops["Lx"] * args["outlier_maxregshift"])
         ylimit = int(ops["Ly"] * args["outlier_maxregshift"])
-        
+
         self.logger.info(
             "checking whether to clip where median-filtered "
             "offsets exceed (x,y) limits of "
             f"({xlimit},{ylimit}) [pixels]"
         )
-        
-        delta_x, x_clipped = identify_and_clip_outliers(
-            np.array(ops["xoff"]), detrend_size, xlimit
-        )
-        delta_y, y_clipped = identify_and_clip_outliers(
-            np.array(ops["yoff"]), detrend_size, ylimit
-        )
+
+        delta_x, x_clipped = identify_and_clip_outliers(np.array(ops["xoff"]), detrend_size, xlimit)
+        delta_y, y_clipped = identify_and_clip_outliers(np.array(ops["yoff"]), detrend_size, ylimit)
         clipped_indices = list(set(x_clipped).union(set(y_clipped)))
-        
+
         self.logger.info(f"{len(x_clipped)} frames clipped in x")
         self.logger.info(f"{len(y_clipped)} frames clipped in y")
         self.logger.info(f"{len(clipped_indices)} frames will be adjusted for clipping")
-        
+
         # Load and process data
         data = suite2p.io.BinaryFile(ops["Ly"], ops["Lx"], bin_path).data
-        
+
         if args["clip_negative"]:
             data[data < 0] = 0
             data = np.uint16(data)
-        
+
         # Apply clipping corrections
         if not suite2p_args["nonrigid"]:
             for frame_index in clipped_indices:
                 dx = delta_x[frame_index] - ops["xoff"][frame_index]
                 dy = delta_y[frame_index] - ops["yoff"][frame_index]
-                data[frame_index] = suite2p.registration.rigid.shift_frame(
-                    data[frame_index], dy, dx
-                )
-        
+                data[frame_index] = suite2p.registration.rigid.shift_frame(data[frame_index], dy, dx)
+
         # Reset empty frames
         reset_frame_shift(
             data,
@@ -1528,26 +1436,26 @@ class Suite2pMotionCorrection(BaseProcessor):
             args["trim_frames_start"],
             args["trim_frames_end"],
         )
-        
+
         # Create validity mask
         is_valid = np.ones(len(data), dtype="bool")
         is_valid[: args["trim_frames_start"]] = False
         is_valid[len(data) - args["trim_frames_end"] :] = False
-        
+
         # Save motion corrected data
         self._save_motion_corrected_data(args, suite2p_args, data, ops)
-        
+
         # Create and save motion diagnostics
         self._create_motion_diagnostics(args, suite2p_args, ops, delta_x, delta_y, is_valid, clipped_indices)
-        
+
         return data
-    
+
     def _save_motion_corrected_data(self, args: dict, suite2p_args: dict, data: np.ndarray, ops: dict) -> None:
         """Save motion corrected data to HDF5 file."""
         with h5py.File(args["motion_corrected_output"], "w") as f:
             f.create_dataset("data", data=data, chunks=(1, *data.shape[1:]))
             f.create_dataset("ref_image", data=suite2p_args["refImg"])
-            
+
             # Save metadata
             args_copy = copy.deepcopy(args)
             suite_args_copy = copy.deepcopy(suite2p_args)
@@ -1555,24 +1463,24 @@ class Suite2pMotionCorrection(BaseProcessor):
             args_copy.pop("refImg")
             args_copy["suite2p_args"] = suite_args_copy
             f.create_dataset(name="metadata", data=json.dumps(args_copy).encode("utf-8"))
-            
+
             # Save registration metrics
             f.create_group("reg_metrics")
             f.create_dataset("reg_metrics/regDX", data=ops.get("regDX", []))
             f.create_dataset("reg_metrics/regPC", data=ops.get("regPC", []))
             f.create_dataset("reg_metrics/tPC", data=ops.get("tPC", []))
-            
+
         self.logger.info(f"saved Suite2P output to {args['motion_corrected_output']}")
-    
+
     def _create_motion_diagnostics(
-        self, 
-        args: dict, 
-        suite2p_args: dict, 
-        ops: dict, 
-        delta_x: np.ndarray, 
-        delta_y: np.ndarray, 
-        is_valid: np.ndarray, 
-        clipped_indices: list
+        self,
+        args: dict,
+        suite2p_args: dict,
+        ops: dict,
+        delta_x: np.ndarray,
+        delta_y: np.ndarray,
+        is_valid: np.ndarray,
+        clipped_indices: list,
     ) -> None:
         """Create and save motion diagnostics CSV file."""
         if suite2p_args["nonrigid"]:
@@ -1630,13 +1538,12 @@ class Suite2pMotionCorrection(BaseProcessor):
                     "is_valid": is_valid,
                 }
             )
-        
+
         motion_offset_df.to_csv(path_or_buf=args["motion_diagnostics_output"], index=False)
         self.logger.info(
-            f"Writing the LIMS expected 'OphysMotionXyOffsetData' "
-            f"csv file to: {args['motion_diagnostics_output']}"
+            f"Writing the LIMS expected 'OphysMotionXyOffsetData' " f"csv file to: {args['motion_diagnostics_output']}"
         )
-        
+
         if len(clipped_indices) != 0 and not suite2p_args["nonrigid"]:
             self.logger.warning(
                 "some offsets have been clipped and the values "
@@ -1644,13 +1551,13 @@ class Suite2pMotionCorrection(BaseProcessor):
                 f"{args['motion_diagnostics_output']} "
                 "where (x_clipped OR y_clipped) = True are not valid"
             )
-    
+
     def _create_visualizations(self, args: dict, data: np.ndarray) -> None:
         """Create and save visualization outputs."""
         # Create projections
         mx_proj = projection_process(data, projection="max")
         av_proj = projection_process(data, projection="avg")
-        
+
         # Save projections
         for im, dst_path in zip(
             [mx_proj, av_proj],
@@ -1659,7 +1566,7 @@ class Suite2pMotionCorrection(BaseProcessor):
             with Image.fromarray(im) as pilim:
                 pilim.save(dst_path)
             self.logger.info(f"wrote {dst_path}")
-        
+
         # Create summary PNG
         motion_offset_df = pd.read_csv(args["motion_diagnostics_output"])
         png_out_path = make_png(
@@ -1669,7 +1576,7 @@ class Suite2pMotionCorrection(BaseProcessor):
             Path(args["registration_summary_output"]),
         )
         self.logger.info(f"wrote {png_out_path}")
-        
+
         # Create nonrigid summary if applicable
         if "nonrigid_x" in motion_offset_df.keys():
             p = Path(args["registration_summary_output"])
@@ -1680,7 +1587,7 @@ class Suite2pMotionCorrection(BaseProcessor):
                 p.parent.joinpath(p.stem + "_nonrigid" + p.suffix),
             )
             self.logger.info(f"wrote {nonrigid_png_out_path}")
-    
+
     def _create_preview_video(self, args: dict, suite2p_args: dict) -> None:
         """Create preview video of motion correction."""
         # Downsample and normalize movies
@@ -1691,7 +1598,7 @@ class Suite2pMotionCorrection(BaseProcessor):
             lower_quantile=args["movie_lower_quantile"],
             upper_quantile=args["movie_upper_quantile"],
         )
-        
+
         if suite2p_args.get("h5py", ""):
             h5_file = suite2p_args["h5py"]
             processed_vids = [
@@ -1710,22 +1617,18 @@ class Suite2pMotionCorrection(BaseProcessor):
                     Path(args["motion_corrected_output"]),
                 ]
             ]
-        
-        self.logger.info(
-            "finished downsampling motion corrected and non-motion corrected movies"
-        )
-        
+
+        self.logger.info("finished downsampling motion corrected and non-motion corrected movies")
+
         # Create tiled video
         try:
             tiled_vids = np.block(processed_vids)
-            playback_fps = (
-                args["preview_playback_factor"] / args["preview_frame_bin_seconds"]
-            )
+            playback_fps = args["preview_playback_factor"] / args["preview_frame_bin_seconds"]
             encode_video(tiled_vids, args["motion_correction_preview_output"], playback_fps)
             self.logger.info("wrote " f"{args['motion_correction_preview_output']}")
         except Exception:
             self.logger.info("Could not write motion correction preview")
-    
+
     def _compute_additional_metrics(self, args: dict, suite2p_args: dict) -> None:
         """Compute additional registration metrics."""
         if suite2p_args.get("h5py", ""):
@@ -1737,50 +1640,34 @@ class Suite2pMotionCorrection(BaseProcessor):
                 mov = f["data"]
                 regDX = f["reg_metrics/regDX"][:]
                 crispness = compute_crispness(mov_raw, mov)
-                self.logger.info(
-                    "computed crispness of mean image before and after registration"
-                )
-                
+                self.logger.info("computed crispness of mean image before and after registration")
+
                 # Compute residual optical flow
                 if f["reg_metrics/regPC"][:].any():
-                    flows, farnebackDX = compute_residual_optical_flow(
-                        f["reg_metrics/regPC"]
-                    )
+                    flows, farnebackDX = compute_residual_optical_flow(f["reg_metrics/regPC"])
                     f.create_dataset("reg_metrics/farnebackROF", data=flows)
                     f.create_dataset("reg_metrics/farnebackDX", data=farnebackDX)
-                    self.logger.info(
-                        "computed residual optical flow of top PCs using Farneback method"
-                    )
-                    
+                    self.logger.info("computed residual optical flow of top PCs using Farneback method")
+
                 f.create_dataset("reg_metrics/crispness", data=crispness)
-                self.logger.info(
-                    "appended additional registration metrics to"
-                    f"{args['motion_corrected_output']}"
-                )
+                self.logger.info("appended additional registration metrics to" f"{args['motion_corrected_output']}")
         else:
             tiff_array = tiff_to_numpy(suite2p_args["tiff_list"])
             with h5py.File(args["motion_corrected_output"], "r+") as f:
                 regDX = f["reg_metrics/regDX"][:]
                 crispness = compute_crispness(tiff_array, f["data"])
-                self.logger.info(
-                    "computed crispness of mean image before and after registration"
-                )
-                
+                self.logger.info("computed crispness of mean image before and after registration")
+
                 if f["reg_metrics/regPC"][:].any():
                     regPC = f["reg_metrics/regPC"]
                     flows, farnebackDX = compute_residual_optical_flow(regPC)
                     f.create_dataset("reg_metrics/farnebackROF", data=flows)
                     f.create_dataset("reg_metrics/farnebackDX", data=farnebackDX)
-                    self.logger.info(
-                        "computed residual optical flow of top PCs using Farneback method"
-                    )
-                
+                    self.logger.info("computed residual optical flow of top PCs using Farneback method")
+
                 f.create_dataset("reg_metrics/crispness", data=crispness)
-                self.logger.info(
-                    "appended additional registration metrics to"
-                    f"{args['motion_corrected_output']}"
-                )
-        
+                self.logger.info("appended additional registration metrics to" f"{args['motion_corrected_output']}")
+
         # Create flow visualization
         with h5py.File(args["motion_corrected_output"], "r") as f:
             if f["reg_metrics/regDX"][:].any() and f["reg_metrics/farnebackDX"][:].any():
@@ -1799,16 +1686,16 @@ class Suite2pMotionCorrection(BaseProcessor):
                         iPC,
                     )
                 self.logger.info(f"created images of PC_low, PC_high, and PC_rof for PC {iPC}")
-    
+
     def _write_metadata(self, args: dict) -> None:
         """Write processing metadata and QC metrics."""
         if self.settings.data_type == "TIFF":
             input_file = self.input_file[0]
         else:
             input_file = self.input_file
-            
+
         basename = os.path.basename(input_file)
-        
+
         # Write data process metadata
         write_data_process(
             args,
@@ -1819,14 +1706,14 @@ class Suite2pMotionCorrection(BaseProcessor):
             self.start_time,
             end_time=dt.now(),
         )
-        
+
         # Serialize QC metrics
         serialize_registration_summary_qcmetric(self.output_dir)
         serialize_fov_quality_qcmetric(self.output_dir)
-    
+
     def run(self) -> Dict[str, Any]:
         """Execute the Suite2p motion correction pipeline.
-        
+
         Returns
         -------
         Dict[str, Any]
@@ -1834,39 +1721,39 @@ class Suite2pMotionCorrection(BaseProcessor):
         """
         try:
             self.logger.info("Starting Suite2p motion correction")
-            
+
             # Load metadata
             self._load_metadata()
-            
+
             # Setup processing
             self._setup_data_processing()
-            
+
             # Setup arguments
             args, suite2p_args = self._setup_arguments()
-            
+
             # Preprocess data
             self._preprocess_data(args, suite2p_args)
-            
+
             # Run suite2p registration
             bin_path, ops_path = self._run_suite2p_registration(suite2p_args)
-            
+
             # Process registration output
             data = self._process_registration_output(args, suite2p_args, bin_path, ops_path)
-            
+
             # Create visualizations
             self._create_visualizations(args, data)
-            
+
             # Create preview video
             self._create_preview_video(args, suite2p_args)
-            
+
             # Compute additional metrics
             self._compute_additional_metrics(args, suite2p_args)
-            
+
             # Write metadata
             self._write_metadata(args)
-            
+
             self._finalize()
-            
+
             return {
                 "status": "success",
                 "motion_corrected_output": args["motion_corrected_output"],
@@ -1875,62 +1762,53 @@ class Suite2pMotionCorrection(BaseProcessor):
                 "avg_projection_output": args["avg_projection_output"],
                 "registration_summary_output": args["registration_summary_output"],
                 "motion_correction_preview_output": args["motion_correction_preview_output"],
-                "metadata": self.get_processing_metadata()
+                "metadata": self.get_processing_metadata(),
             }
-            
+
         except Exception as e:
             self.logger.error(f"Motion correction failed: {str(e)}")
             self._finalize()
-            return {
-                "status": "failed",
-                "error": str(e),
-                "metadata": self.get_processing_metadata()
-            }
+            return {"status": "failed", "error": str(e), "metadata": self.get_processing_metadata()}
 
 
 if __name__ == "__main__":  # pragma: nocover
     # Command-line interface for backwards compatibility
     try:
         from aind_log_utils.log import setup_logging
+
         has_aind_log = True
     except ImportError:
         has_aind_log = False
-    
+
     # Set the log level and name the logger
     logger = logging.getLogger("Suite2P motion correction")
     logger.setLevel(logging.INFO)
-    
+
     # Parse command-line arguments
     parser = MotionCorrectionSettings()
-    
+
     # Setup logging
     session_fp = next(parser.input_dir.rglob("session.json"))
     description_fp = next(parser.input_dir.rglob("data_description.json"))
     subject_fp = next(parser.input_dir.rglob("subject.json"))
-    
+
     with open(description_fp, "r") as j:
         data_description = json.load(j)
     with open(subject_fp, "r") as j:
         subject = json.load(j)
-        
+
     subject_id = subject.get("subject_id", "")
     name = data_description.get("name", "")
     if has_aind_log:
-        setup_logging(
-            "aind-ophys-motion-correction", mouse_id=subject_id, session_name=name
-        )
-    
+        setup_logging("aind-ophys-motion-correction", mouse_id=subject_id, session_name=name)
+
     # Create and run processor
     processor = Suite2pMotionCorrection(
-        input_dir=parser.input_dir,
-        output_dir=parser.output_dir,
-        settings=parser,
-        debug=parser.debug,
-        logger=logger
+        input_dir=parser.input_dir, output_dir=parser.output_dir, settings=parser, debug=parser.debug, logger=logger
     )
-    
+
     result = processor.run()
-    
+
     if result["status"] == "success":
         logger.info("Motion correction completed successfully")
     else:

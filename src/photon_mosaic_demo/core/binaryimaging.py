@@ -58,9 +58,7 @@ class BinaryImaging(BaseImaging):
             file_path_list = [Path(file_paths)]
 
         if t_starts is not None:
-            assert len(t_starts) == len(
-                file_path_list
-            ), "t_starts must be a list of the same size as file_paths"
+            assert len(t_starts) == len(file_path_list), "t_starts must be a list of the same size as file_paths"
             t_starts = [float(t_start) for t_start in t_starts]
 
         dtype = np.dtype(dtype)
@@ -127,18 +125,12 @@ class BinaryImaging(BaseImaging):
                 del segment
 
 
-BinaryImaging.write_imaging.__doc__ = BinaryImaging.write_imaging.__doc__.format(
-    _shared_job_kwargs_doc
-)
+BinaryImaging.write_imaging.__doc__ = BinaryImaging.write_imaging.__doc__.format(_shared_job_kwargs_doc)
 
 
 class BinaryImagingSegment(BaseImagingSegment):
-    def __init__(
-        self, file_path, sampling_frequency, t_start, image_shape, dtype, file_offset
-    ):
-        BaseImagingSegment.__init__(
-            self, sampling_frequency=sampling_frequency, t_start=t_start
-        )
+    def __init__(self, file_path, sampling_frequency, t_start, image_shape, dtype, file_offset):
+        BaseImagingSegment.__init__(self, sampling_frequency=sampling_frequency, t_start=t_start)
         self.image_shape = image_shape
         self.dtype = np.dtype(dtype)
         self.file_offset = file_offset

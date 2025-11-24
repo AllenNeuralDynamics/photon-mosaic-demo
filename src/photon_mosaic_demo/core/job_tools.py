@@ -7,7 +7,7 @@ from spikeinterface.core.core_tools import (
     convert_string_to_bytes,
 )
 from spikeinterface.core.job_tools import (
-    ChunkRecordingExecutor,
+    ChunkExecutor,
     chunk_duration_to_chunk_size,
     ensure_n_jobs,
 )

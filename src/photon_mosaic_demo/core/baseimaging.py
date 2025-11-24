@@ -7,7 +7,7 @@ from numpy.typing import ArrayLike, DTypeLike
 from roiextractors.core_utils import _convert_bytes_to_str, _convert_seconds_to_str
 from spikeinterface.core.base import BaseExtractor, BaseSegment
 
-from .imaging_tools import write_binary_imaging
+from .imaging_tools import write_binary_imaging, get_random_data_chunks
 
 # TODO: frames instead of samples
 # TODO: epoch instead of segment (segmentation is another thing)
@@ -26,18 +26,14 @@ class BaseImaging(BaseExtractor):
             channel_ids = [0]  # fake channel
         BaseExtractor.__init__(self, channel_ids)
         self._sampling_frequency = float(sampling_frequency)
-        assert (
-            len(shape) == 2
-        ), "Shape must be a tuple/list/array of length 2 (width, height)"
+        assert len(shape) == 2, "Shape must be a tuple/list/array of length 2 (width, height)"
         self._image_shape = np.array(shape)
         self._imaging_segments: list[BaseImagingSegment] = []
+        self._average_image = None
 
     def _repr_header(self, display_name=True):
         """Generate text representation of the BaseImaging object."""
-        num_samples = [
-            self.get_num_samples(segment_index=i)
-            for i in range(self.get_num_segments())
-        ]
+        num_samples = [self.get_num_samples(segment_index=i) for i in range(self.get_num_segments())]
         image_shape = self.image_shape
         dtype = self.get_dtype()
         sf_hz = self.sampling_frequency
@@ -54,9 +50,7 @@ class BaseImaging(BaseExtractor):
 
         # Calculate memory size using product of all dimensions in image_size
         memory_sizes = [ns * prod(image_shape) * dtype.itemsize for ns in num_samples]
-        memory_repr = [
-            _convert_bytes_to_str(memory_size) for memory_size in memory_sizes
-        ]
+        memory_repr = [_convert_bytes_to_str(memory_size) for memory_size in memory_sizes]
 
         if self.get_num_segments() == 1:
             num_samples = num_samples[0]
@@ -106,7 +100,7 @@ class BaseImaging(BaseExtractor):
             html_segments += "</ol></details>"
 
         html_extra = self._get_common_repr_html(common_style)
-        html_repr = html_header + html_segments  + html_extra
+        html_repr = html_header + html_segments + html_extra
         return html_repr
 
     @property
@@ -148,10 +142,21 @@ class BaseImaging(BaseExtractor):
             if self.get_num_segments() == 1:
                 segment_index = 0
             else:
-                raise ValueError(
-                    "segment_index must be provided for multi-segment imaging data."
-                )
+                raise ValueError("segment_index must be provided for multi-segment imaging data.")
         return self._imaging_segments[segment_index].get_num_samples()
+
+    def get_num_frames(self, segment_index: int | None = None) -> int:
+        """Get the total number of frames in the imaging data.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        int
+            The total number of frames.
+        """
+        return self.get_num_samples(segment_index=segment_index)
 
     def get_num_segments(self) -> int:
         """Get the number of imaging segments.
@@ -202,19 +207,30 @@ class BaseImaging(BaseExtractor):
             if self.get_num_segments() == 1:
                 segment_index = 0
             else:
-                raise ValueError(
-                    "segment_index must be provided for multi-segment imaging data."
-                )
+                raise ValueError("segment_index must be provided for multi-segment imaging data.")
         start_frame = start_frame if start_frame is not None else 0
-        end_frame = (
-            end_frame
-            if end_frame is not None
-            else self.get_num_samples(segment_index=segment_index)
-        )
+        end_frame = end_frame if end_frame is not None else self.get_num_samples(segment_index=segment_index)
         return self._imaging_segments[segment_index].get_series(start_frame, end_frame)
 
-    def get_average_image(self, series: np.ndarray, axis: int = 0) -> np.ndarray:
-        return np.mean(series, axis=axis)
+    def get_average_image(
+        self,
+        num_chunks: int = 20,
+        chunk_duration: str = "1s",
+        chunk_size: int | None = None,
+        recompute: bool = False,
+    ) -> np.ndarray:
+        if self._average_image is not None and not recompute:
+            return self._average_image
+        else:
+            data = get_random_data_chunks(
+                self,
+                num_chunks_per_segment=num_chunks,
+                chunk_duration=chunk_duration,
+                chunk_size=chunk_size,
+                concatenated=True,
+            )
+            self._average_image = np.mean(data, axis=0)
+            return self._average_image
 
     def add_imaging_segment(self, imaging_segment):
         """Adds an imaging segment.
@@ -244,9 +260,7 @@ class BaseImaging(BaseExtractor):
             if self.get_num_segments() == 1:
                 segment_index = 0
             else:
-                raise ValueError(
-                    "segment_index must be provided for multi-segment imaging data."
-                )
+                raise ValueError("segment_index must be provided for multi-segment imaging data.")
         return self._imaging_segments[segment_index].get_times()
 
     def set_times(self, times: ArrayLike, segment_index: int | None = None):
@@ -263,9 +277,7 @@ class BaseImaging(BaseExtractor):
             if self.get_num_segments() == 1:
                 segment_index = 0
             else:
-                raise ValueError(
-                    "segment_index must be provided for multi-segment imaging data."
-                )
+                raise ValueError("segment_index must be provided for multi-segment imaging data.")
         self._imaging_segments[segment_index].time_vector = np.asarray(times)
 
     def get_start_time(self, segment_index=None) -> float:
@@ -432,16 +444,11 @@ class BaseImaging(BaseExtractor):
 
         if format == "binary":
             folder = kwargs["folder"]
-            file_paths = [
-                folder / f"video_cached_seg{i}.raw"
-                for i in range(self.get_num_segments())
-            ]
+            file_paths = [folder / f"video_cached_seg{i}.raw" for i in range(self.get_num_segments())]
             dtype = kwargs.get("dtype", None) or self.get_dtype()
             t_starts = self._get_t_starts()
 
-            write_binary_imaging(
-                self, file_paths=file_paths, dtype=dtype, verbose=verbose, **job_kwargs
-            )
+            write_binary_imaging(self, file_paths=file_paths, dtype=dtype, verbose=verbose, **job_kwargs)
 
             from .binaryimaging import BinaryFolderImaging, BinaryImaging
 
@@ -487,15 +494,11 @@ class BaseImagingSegment(BaseSegment):
     def __init__(self, sampling_frequency=None, t_start=None, time_vector=None):
         # sampling_frequency and time_vector are exclusive
         if sampling_frequency is None:
-            assert (
-                time_vector is not None
-            ), "Pass either 'sampling_frequency' or 'time_vector'"
+            assert time_vector is not None, "Pass either 'sampling_frequency' or 'time_vector'"
             assert time_vector.ndim == 1, "time_vector should be a 1D array"
 
         if time_vector is None:
-            assert (
-                sampling_frequency is not None
-            ), "Pass either 'sampling_frequency' or 'time_vector'"
+            assert sampling_frequency is not None, "Pass either 'sampling_frequency' or 'time_vector'"
 
         self.sampling_frequency = sampling_frequency
         self.t_start = t_start

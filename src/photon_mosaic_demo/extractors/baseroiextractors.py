@@ -62,9 +62,7 @@ class BaseROIExtractorImagingSegment(BaseImagingSegment):
     """Base class for ROI extractors that work with BaseImaging data."""
 
     def __init__(self, roi_extractor_imaging: ImagingExtractor):
-        BaseImagingSegment.__init__(
-            self, sampling_frequency=roi_extractor_imaging.get_sampling_frequency()
-        )
+        BaseImagingSegment.__init__(self, sampling_frequency=roi_extractor_imaging.get_sampling_frequency())
         self.roiextractor_extractor = roi_extractor_imaging
 
     def get_num_samples(self):
@@ -74,32 +72,30 @@ class BaseROIExtractorImagingSegment(BaseImagingSegment):
         return self.roiextractor_extractor.get_series(start_frame, end_frame)
 
 
-def auto_add_roiextractor_methods():
-    """Automatically add all methods from ImagingExtractor to BaseROIExtractorImagingSegment."""
-    for method_name in dir(ImagingExtractor):
-        if not method_name.startswith("_") and callable(
-            getattr(ImagingExtractor, method_name)
-        ):
-            if hasattr(BaseROIExtractorImagingSegment, method_name):
-                continue
+# def auto_add_roiextractor_methods():
+#     """Automatically add all methods from ImagingExtractor to BaseROIExtractorImagingSegment."""
+#     for method_name in dir(ImagingExtractor):
+#         if not method_name.startswith("_") and callable(
+#             getattr(ImagingExtractor, method_name)
+#         ):
+#             if hasattr(BaseROIExtractorImagingSegment, method_name):
+#                 continue
 
-            def make_wrapper(method_name):
-                def wrapper(self, *args, **kwargs):
-                    return getattr(self.roiextractor_extractor, method_name)(
-                        *args, **kwargs
-                    )
+#             def make_wrapper(method_name):
+#                 def wrapper(self, *args, **kwargs):
+#                     return getattr(self.roiextractor_extractor, method_name)(
+#                         *args, **kwargs
+#                     )
 
-                wrapper.__name__ = method_name
-                return wrapper
+#                 wrapper.__name__ = method_name
+#                 return wrapper
 
-            setattr(
-                BaseROIExtractorImagingSegment, method_name, make_wrapper(method_name)
-            )
+#             setattr(
+#                 BaseROIExtractorImagingSegment, method_name, make_wrapper(method_name)
+#             )
 
 
-def get_imaging_extractor(
-    file_path: str, imaging_name: str | None = None, **kwargs
-) -> BaseROIExtractorImaging:
+def get_imaging_extractor(file_path: str, imaging_name: str | None = None, **kwargs) -> BaseROIExtractorImaging:
     """Automatically detect and load imaging data from a file.
 
     This function attempts to identify the correct imaging extractor based on the file
@@ -137,9 +133,7 @@ def get_imaging_extractor(
         raise FileNotFoundError(f"File not found: {file_path}")
 
     if imaging_name is not None:
-        return BaseROIExtractorImaging(
-            imaging_name=imaging_name, file_path=str(file_path), **kwargs
-        )
+        return BaseROIExtractorImaging(imaging_name=imaging_name, file_path=str(file_path), **kwargs)
 
     suffix = file_path.suffix.lower()
 
@@ -168,9 +162,7 @@ def get_imaging_extractor(
             continue
 
         try:
-            imaging = BaseROIExtractorImaging(
-                imaging_name=extractor_name, file_path=str(file_path), **kwargs
-            )
+            imaging = BaseROIExtractorImaging(imaging_name=extractor_name, file_path=str(file_path), **kwargs)
             print(f"Successfully loaded with {extractor_name}")
             return imaging
         except Exception as e:

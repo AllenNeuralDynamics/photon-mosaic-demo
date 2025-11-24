@@ -15,9 +15,7 @@ class MotionCorrectionSettings(BaseSettings, cli_parse_args=True):
         default=Path("/scratch"),
         description="Directory into which to write temporary files produced by Suite2P",
     )
-    data_type: str = Field(
-        default="h5", description="Processing h5 (default) or TIFF timeseries"
-    )
+    data_type: str = Field(default="h5", description="Processing h5 (default) or TIFF timeseries")
     do_registration: bool = Field(
         default="true",
         description="whether to register data (2 forces re-registration)",
@@ -25,22 +23,16 @@ class MotionCorrectionSettings(BaseSettings, cli_parse_args=True):
     batch_size: int = Field(default=500, description="Number of frames per batch")
     align_by_chan: int = Field(
         default=1,
-        description="when multi-channel, you can align by non-functional channel "
-        "(1-based)",
+        description="when multi-channel, you can align by non-functional channel " "(1-based)",
     )
     maxregshift: float = Field(
         default=0.1,
         description="max allowed registration shift, as a fraction of "
         "frame max(width and height). This will be ignored if force_refImg is set to True",
     )
-    force_refImg: bool = Field(
-        default=True, description="Force the use of an external reference image"
-    )
-    nonrigid: bool = Field(
-        default=True, description="Whether to use non-rigid registration"
-    )
-    block_size: list = Field(default_factory=lambda: [128, 128],
-        description="Block size for non-rigid registration.")
+    force_refImg: bool = Field(default=True, description="Force the use of an external reference image")
+    nonrigid: bool = Field(default=True, description="Whether to use non-rigid registration")
+    block_size: list = Field(default_factory=lambda: [128, 128], description="Block size for non-rigid registration.")
     snr_thresh: float = Field(
         default=1.2,
         description="if any nonrigid block is below this threshold, it gets smoothed "
@@ -97,24 +89,23 @@ class MotionCorrectionSettings(BaseSettings, cli_parse_args=True):
     trim_frames_end: int = Field(
         default=0,
         description="Number of frames to remove from the end of the movie if known. "
-        "Removes frames from motion border calculation and resets the frame shifts " 
+        "Removes frames from motion border calculation and resets the frame shifts "
         "found. Frames are still written to motion correction. Raises an error if "
         "auto_remove_empty_frames is set and trim_frames_start > 0",
     )
     do_optimize_motion_params: bool = Field(
         default=False,
         description="Do a search for best parameters of smooth_sigma and smooth_sigma_time. "
-        "Adds significant runtime cost to motion correction and should only be run once per " \
+        "Adds significant runtime cost to motion correction and should only be run once per "
         "experiment with the resulting parameters being stored for later use.",
     )
     smooth_sigma_time: int = Field(
         default=0,
-        description="gaussian smoothing in time. If do_optimize_motion_params is set, "
-        "this will be overridden",
+        description="gaussian smoothing in time. If do_optimize_motion_params is set, " "this will be overridden",
     )
     smooth_sigma: float = Field(
         default=1.15,
-        description="~1 good for 2P recordings, recommend 3-5 for 1P recordings. " 
+        description="~1 good for 2P recordings, recommend 3-5 for 1P recordings. "
         "If do_optimize_motion_params is set, this will be overridden",
     )
     use_ave_image_as_reference: bool = Field(

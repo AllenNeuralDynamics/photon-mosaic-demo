@@ -17,9 +17,7 @@ class BaseRois(BaseExtractor):
     ):
         BaseExtractor.__init__(self, roi_ids)
         self._sampling_frequency = float(sampling_frequency)
-        assert (
-            len(shape) == 2
-        ), "Shape must be a tuple/list/array of length 2 (width, height)"
+        assert len(shape) == 2, "Shape must be a tuple/list/array of length 2 (width, height)"
         self._image_shape = np.array(shape)
 
         # no concept of segments for rois yet, since they are spatial only
@@ -187,15 +185,11 @@ class BaseImagingSegment(BaseSegment):
     def __init__(self, sampling_frequency=None, t_start=None, time_vector=None):
         # sampling_frequency and time_vector are exclusive
         if sampling_frequency is None:
-            assert (
-                time_vector is not None
-            ), "Pass either 'sampling_frequency' or 'time_vector'"
+            assert time_vector is not None, "Pass either 'sampling_frequency' or 'time_vector'"
             assert time_vector.ndim == 1, "time_vector should be a 1D array"
 
         if time_vector is None:
-            assert (
-                sampling_frequency is not None
-            ), "Pass either 'sampling_frequency' or 'time_vector'"
+            assert sampling_frequency is not None, "Pass either 'sampling_frequency' or 'time_vector'"
 
         self.sampling_frequency = sampling_frequency
         self.t_start = t_start
