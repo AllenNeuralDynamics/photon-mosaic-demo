@@ -400,7 +400,7 @@ class BaseImaging(BaseExtractor):
 
         if format == "binary":
             folder = kwargs["folder"]
-            file_paths = [folder / f"traces_cached_seg{i}.raw" for i in range(self.get_num_segments())]
+            file_paths = [folder / f"video_cached_seg{i}.raw" for i in range(self.get_num_segments())]
             dtype = kwargs.get("dtype", None) or self.get_dtype()
             t_starts = self._get_t_starts()
 
