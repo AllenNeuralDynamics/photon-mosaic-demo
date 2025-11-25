@@ -8,7 +8,7 @@ import warnings
 from roiextractors.core_utils import _convert_bytes_to_str, _convert_seconds_to_str
 from spikeinterface.core.base import BaseExtractor, BaseSegment
 
-from .imaging_tools import write_binary_imaging
+from .imaging_tools import write_binary_imaging, get_random_data_chunks
 # TODO: frames instead of samples
 # TODO: epoch instead of segment (segmentation is another thing)
 

@@ -30,20 +30,7 @@ for imaging_name, imaging_class in imaging_extractor_dict.items():
         # Set proper class name and module
         DynamicImagingClass.__name__ = extractor_name
         DynamicImagingClass.__qualname__ = extractor_name
-        DynamicImagingClass.__doc__ = f"""Adapter class for {extractor_name}.
-        
-        This class wraps the {extractor_name} from roiextractors to work with BaseImaging.
-        
-        Parameters
-        ----------
-        **kwargs
-            Keyword arguments passed to {extractor_name}.
-        
-        Examples
-        --------
-        >>> imaging = {extractor_name}(file_path="path/to/data.tif")
-        >>> frames = imaging.get_series(start_frame=0, end_frame=10)
-        """
+        DynamicImagingClass.__doc__ = imaging_class.__doc__
 
         return DynamicImagingClass
 
@@ -97,18 +84,7 @@ for imaging_name, imaging_class in imaging_extractor_dict.items():
     read_func = make_read_function(dynamic_class, imaging_class)
     read_func.__name__ = read_func_name
     read_func.__qualname__ = read_func_name
-    read_func.__doc__ = f"""Convenience function to create an instance of {imaging_name}.
-    
-    Returns
-    -------
-    {imaging_name}
-        An instance of the imaging class.
-    
-    Examples
-    --------
-    >>> imaging = {read_func_name}(file_path="path/to/data.tif")
-    >>> frames = imaging.get_series(start_frame=0, end_frame=10)
-    """
+    read_func.__doc__ = imaging_class-__doc__
 
     globals()[read_func_name] = read_func
     __all__.append(read_func_name)
