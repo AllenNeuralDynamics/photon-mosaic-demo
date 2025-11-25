@@ -53,7 +53,6 @@ class NumpyImaging(BaseImaging):
             rng = np.random.default_rng(seed=seed)
             seed = rng.integers(0, 1e6)
 
-
         if len(self._video.shape) not in [3, 4]:
             raise ValueError("'timeseries' must be a 3D or 4D numpy array (num_frames, height, width, [num_channels])")
         _, width, height = self._video.shape[0:3]
@@ -70,7 +69,13 @@ class NumpyImaging(BaseImaging):
 
         BaseImaging.__init__(self, shape=(width, height), sampling_frequency=sampling_frequency)
 
-        self.add_imaging_segment(NumpyImagingSegment(video=self._video, sampling_frequency=self._sampling_frequency, time_vector=time_vector))
+        self.add_imaging_segment(
+            NumpyImagingSegment(
+                video=self._video,
+                sampling_frequency=self._sampling_frequency,
+                time_vector=time_vector,
+            )
+        )
 
         self._kwargs = {
             "timeseries": timeseries_kwarg,
@@ -84,7 +89,12 @@ class NumpyImaging(BaseImaging):
 class NumpyImagingSegment(BaseImagingSegment):
     """A single segment of an Imaging specified by a numpy array"""
 
-    def __init__(self, video: np.ndarray, sampling_frequency: float, time_vector: ArrayType | None = None):
+    def __init__(
+        self,
+        video: np.ndarray,
+        sampling_frequency: float,
+        time_vector: ArrayType | None = None,
+    ):
         super().__init__(sampling_frequency=sampling_frequency, time_vector=time_vector)
         self._video = video
 

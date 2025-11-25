@@ -23,6 +23,7 @@ class BaseImaging(BaseExtractor):
         assert len(shape) == 2, "Shape must be a tuple/list/array of length 2 (width, height)"
         self._image_shape = np.array(shape)
         self._imaging_segments: list[BaseImagingSegment] = []
+        self._average_image = None
 
     def _repr_header(self, display_name=True):
         """Generate text representation of the BaseImaging object."""
@@ -93,7 +94,7 @@ class BaseImaging(BaseExtractor):
             html_segments += "</ol></details>"
 
         html_extra = self._get_common_repr_html(common_style)
-        html_repr = html_header + html_segments  + html_extra
+        html_repr = html_header + html_segments + html_extra
         return html_repr
 
     @property
@@ -138,9 +139,22 @@ class BaseImaging(BaseExtractor):
                 raise ValueError("segment_index must be provided for multi-segment imaging data.")
         return self._imaging_segments[segment_index].get_num_samples()
 
+    def get_num_frames(self, segment_index: int | None = None) -> int:
+        """Get the total number of frames in the imaging data.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        int
+            The total number of frames.
+        """
+        return self.get_num_samples(segment_index=segment_index)
+
     def get_num_segments(self) -> int:
         """Get the number of imaging segments.
-        
+
         Returns
         -------
         int
@@ -161,7 +175,12 @@ class BaseImaging(BaseExtractor):
     def get_num_pixels(self) -> int:
         return np.prod(self.image_shape)
 
-    def get_series(self, start_frame: int | None = None, end_frame: int | None = None, segment_index: int | None = None) -> np.ndarray:
+    def get_series(
+        self,
+        start_frame: int | None = None,
+        end_frame: int | None = None,
+        segment_index: int | None = None,
+    ) -> np.ndarray:
         """Get a series of frames from the imaging data.
 
         Parameters
@@ -186,6 +205,26 @@ class BaseImaging(BaseExtractor):
         start_frame = start_frame if start_frame is not None else 0
         end_frame = end_frame if end_frame is not None else self.get_num_samples(segment_index=segment_index)
         return self._imaging_segments[segment_index].get_series(start_frame, end_frame)
+
+    def get_average_image(
+        self,
+        num_chunks: int = 20,
+        chunk_duration: str = "1s",
+        chunk_size: int | None = None,
+        recompute: bool = False,
+    ) -> np.ndarray:
+        if self._average_image is not None and not recompute:
+            return self._average_image
+        else:
+            data = get_random_data_chunks(
+                self,
+                num_chunks_per_segment=num_chunks,
+                chunk_duration=chunk_duration,
+                chunk_size=chunk_size,
+                concatenated=True,
+            )
+            self._average_image = np.mean(data, axis=0)
+            return self._average_image
 
     def add_imaging_segment(self, imaging_segment):
         """Adds an imaging segment.
@@ -392,7 +431,6 @@ class BaseImaging(BaseExtractor):
             time_vectors = None
         return time_vectors
 
-
     def _save(self, format="binary", verbose: bool = False, **save_kwargs):
         from spikeinterface.core.job_tools import split_job_kwargs
 
@@ -406,7 +444,7 @@ class BaseImaging(BaseExtractor):
 
             write_binary_imaging(self, file_paths=file_paths, dtype=dtype, verbose=verbose, **job_kwargs)
 
-            from .binaryimaging import BinaryImaging, BinaryFolderImaging
+            from .binaryimaging import BinaryFolderImaging, BinaryImaging
 
             # This is created so it can be saved as json because the `BinaryFolderRecording` requires it loading
             # See the __init__ of `BinaryFolderRecording`
@@ -506,7 +544,9 @@ class BaseImagingSegment(BaseSegment):
         The keys are always present, but the values may be None.
         """
         time_kwargs = dict(
-            sampling_frequency=self.sampling_frequency, t_start=self.t_start, time_vector=self.time_vector
+            sampling_frequency=self.sampling_frequency,
+            t_start=self.t_start,
+            time_vector=self.time_vector,
         )
         return time_kwargs
 

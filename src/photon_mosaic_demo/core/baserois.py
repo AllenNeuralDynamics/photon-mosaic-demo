@@ -1,16 +1,18 @@
+
 import numpy as np
-from numpy.typing import ArrayLike, DTypeLike
-from math import prod
-
-
-from roiextractors.core_utils import _convert_bytes_to_str, _convert_seconds_to_str
+from numpy.typing import ArrayLike
 from spikeinterface.core.base import BaseExtractor, BaseSegment
 
 
 class BaseRois(BaseExtractor):
     """Base class for rois extractors."""
 
-    def __init__(self, sampling_frequency: float, shape: tuple | list | np.ndarray, roi_ids: ArrayLike):
+    def __init__(
+        self,
+        sampling_frequency: float,
+        shape: tuple | list | np.ndarray,
+        roi_ids: ArrayLike,
+    ):
         BaseExtractor.__init__(self, roi_ids)
         self._sampling_frequency = float(sampling_frequency)
         assert len(shape) == 2, "Shape must be a tuple/list/array of length 2 (width, height)"
@@ -84,7 +86,6 @@ class BaseRois(BaseExtractor):
             The shape of the images as (height, width).
         """
         return self._image_shape
-
 
     @property
     def sampling_frequency(self):
@@ -238,7 +239,9 @@ class BaseImagingSegment(BaseSegment):
         The keys are always present, but the values may be None.
         """
         time_kwargs = dict(
-            sampling_frequency=self.sampling_frequency, t_start=self.t_start, time_vector=self.time_vector
+            sampling_frequency=self.sampling_frequency,
+            t_start=self.t_start,
+            time_vector=self.time_vector,
         )
         return time_kwargs
 

@@ -64,9 +64,7 @@ def _tiff_to_numpy(tiff_file: Path) -> np.ndarray:
         return reader.data()
 
 
-def tiff_to_numpy(
-    tiff_list: List[Path], trim_frames_start: int = 0, trim_frames_end: int = 0
-) -> np.ndarray:
+def tiff_to_numpy(tiff_list: List[Path], trim_frames_start: int = 0, trim_frames_end: int = 0) -> np.ndarray:
     """
     Converts a list of TIFF files to a single numpy array, with optional frame trimming.
 
@@ -115,28 +113,23 @@ def tiff_to_numpy(
     for tiff_path in tiff_list:
         array = _tiff_to_numpy(tiff_path)
         file_frames = array.shape[0]
-        
+
         # Determine which frames to include from this file
         start_frame = max(0, trim_frames_start - processed_frames)
         end_frame = min(
-            file_frames, 
-            file_frames - max(0, (processed_frames + file_frames) - (total_frames - trim_frames_end))
+            file_frames, file_frames - max(0, (processed_frames + file_frames) - (total_frames - trim_frames_end))
         )
-        
+
         if start_frame < end_frame:
             arrays_to_stack.append(array[start_frame:end_frame])
-        
+
         processed_frames += file_frames
 
     # Stack all arrays along the appropriate axis
     if not arrays_to_stack:
         raise ValueError("No frames remaining after trimming")
 
-    return (
-        np.concatenate(arrays_to_stack, axis=0)
-        if len(arrays_to_stack) > 1
-        else arrays_to_stack[0]
-    )
+    return np.concatenate(arrays_to_stack, axis=0) if len(arrays_to_stack) > 1 else arrays_to_stack[0]
 
 
 def load_initial_frames(
@@ -175,9 +168,7 @@ def load_initial_frames(
         raise ValueError("File type not supported")
     # Total number of frames in the movie.
     tot_frames = array.shape[0]
-    requested_frames = np.linspace(
-        0, tot_frames, 1 + min(n_frames, tot_frames), dtype=int
-    )[:-1]
+    requested_frames = np.linspace(0, tot_frames, 1 + min(n_frames, tot_frames), dtype=int)[:-1]
     frames = array[requested_frames]
     return frames
 
@@ -205,9 +196,7 @@ def remove_extrema_frames(input_frames: np.ndarray, n_sigma: float = 3) -> np.nd
     """
     frame_means = np.mean(input_frames, axis=(1, 2))
     _, low_cut, high_cut = sigmaclip(frame_means, low=n_sigma, high=n_sigma)
-    trimmed_frames = input_frames[
-        np.logical_and(frame_means > low_cut, frame_means < high_cut)
-    ]
+    trimmed_frames = input_frames[np.logical_and(frame_means > low_cut, frame_means < high_cut)]
     return trimmed_frames
 
 
@@ -370,9 +359,7 @@ def compute_acutance(
     """
     im_max_y, im_max_x = image.shape
 
-    cut_image = image[
-        min_cut_y : im_max_y - max_cut_y, min_cut_x : im_max_x - max_cut_x
-    ]
+    cut_image = image[min_cut_y : im_max_y - max_cut_y, min_cut_x : im_max_x - max_cut_x]
     grady, gradx = np.gradient(cut_image)
     return (grady**2 + gradx**2).mean()
 
@@ -499,7 +486,7 @@ def create_ave_image(
             border.
     """
     from suite2p.registration.register import register_frames
-    
+
     ave_frame = np.zeros((ref_image.shape[0], ref_image.shape[1]))
     min_y = 0
     max_y = 0
@@ -510,9 +497,7 @@ def create_ave_image(
     for start_idx in np.arange(0, tot_frames, batch_size):
         end_idx = min(start_idx + batch_size, tot_frames)
         batch_data = input_frames[start_idx:end_idx]
-        motion_output = register_frames(
-            refImg=ref_image, frames=batch_data, **suite2p_args
-        )
+        motion_output = register_frames(refImg=ref_image, frames=batch_data, **suite2p_args)
         ave_frame += motion_output["meanImg"] * batch_data.shape[0]
         # Record the maximum shift for each direction.
         min_y = min(min_y, motion_output["yoff"].min())
@@ -681,20 +666,12 @@ def generate_single_plane_reference(fp: Path, session) -> Path:
     with h5py.File(fp, "r") as f:
         # take the first bci epoch to save out reference image TODO
         tiff_stems = json.loads(f["epoch_locations"][:][0])
-        bci_epochs = [
-            i
-            for i in session["stimulus_epochs"]
-            if i["stimulus_name"] == "single neuron BCI conditioning"
-        ]
+        bci_epochs = [i for i in session["stimulus_epochs"] if i["stimulus_name"] == "single neuron BCI conditioning"]
         bci_epoch_loc = [i["output_parameters"]["tiff_stem"] for i in bci_epochs][0]
         frame_length = tiff_stems[bci_epoch_loc][1] - tiff_stems[bci_epoch_loc][0]
         vsource = h5py.VirtualSource(f["data"])
-        layout = h5py.VirtualLayout(
-            shape=(frame_length, *f["data"].shape[1:]), dtype=f["data"].dtype
-        )
-        layout[0:frame_length] = vsource[
-            tiff_stems[bci_epoch_loc][0] : tiff_stems[bci_epoch_loc][1]
-        ]
+        layout = h5py.VirtualLayout(shape=(frame_length, *f["data"].shape[1:]), dtype=f["data"].dtype)
+        layout[0:frame_length] = vsource[tiff_stems[bci_epoch_loc][0] : tiff_stems[bci_epoch_loc][1]]
 
         with h5py.File("../scratch/reference_image.h5", "w") as ref:
 
@@ -702,9 +679,7 @@ def generate_single_plane_reference(fp: Path, session) -> Path:
     return Path("../scratch/reference_image.h5")
 
 
-def update_suite2p_args_reference_image(
-    suite2p_args: dict, args: dict, reference_image_fp=None, logger=None
-):
+def update_suite2p_args_reference_image(suite2p_args: dict, args: dict, reference_image_fp=None, logger=None):
     """Update the suite2p_args dictionary with the reference image.
 
     Parameters
@@ -728,9 +703,7 @@ def update_suite2p_args_reference_image(
     # Use our own version of compute_reference to create the initial
     # reference image used by suite2p.
     if logger:
-        logger.info(
-            f'Loading {suite2p_args["nimg_init"]} frames ' "for reference image creation."
-        )
+        logger.info(f'Loading {suite2p_args["nimg_init"]} frames ' "for reference image creation.")
     if reference_image_fp:
         initial_frames = load_initial_frames(
             file_path=reference_image_fp,

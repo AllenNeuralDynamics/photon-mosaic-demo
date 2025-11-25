@@ -9,6 +9,8 @@ dependencies = [
     "roiextractors",
     "pytest>=8.3.5",
     "ruff>=0.9.9",
+    "natsort",
+    "tifffile"
 ]
 
 [project.optional-dependencies]

@@ -1,12 +1,56 @@
 from pathlib import Path
+
 import numpy as np
-
-from spikeinterface.core.job_tools import fix_job_kwargs, _shared_job_kwargs_doc
 from spikeinterface.core.core_tools import add_suffix
+from spikeinterface.core.recording_tools import get_random_slices
+from spikeinterface.core.job_tools import _shared_job_kwargs_doc, fix_job_kwargs
 
-
-from .utils import PathType, DTypeLike
 from .job_tools import ChunkExecutor
+from .utils import DTypeLike, PathType
+
+
+def get_random_data_chunks(imaging, concatenated=True, **random_slices_kwargs):
+    """
+    Extract random chunks across segments.
+
+    Internally, it uses `get_random_slices()` and retrieves the traces chunk as a list
+    or a concatenated unique array.
+
+    Please read `get_random_slices()` for more details on parameters.
+
+
+    Parameters
+    ----------
+    imaging : BaseImaging
+        The imaging extractor to get random chunks from
+    num_chunks_per_segment : int, default: 20
+        Number of chunks per segment
+    concatenated : bool, default: True
+        If True chunk are concatenated along time axis
+    **random_slices_kwargs : dict
+        Options transmited to  get_random_slices(), please read documentation from this
+        function for more details.
+
+    Returns
+    -------
+    chunk_list : np.array | list of np.array
+        Array of concatenate chunks per segment
+    """
+    slices = get_random_slices(imaging, **random_slices_kwargs)
+
+    chunk_list = []
+    for segment_index, start_frame, end_frame in slices:
+        series_chunk = imaging.get_series(
+            start_frame=start_frame,
+            end_frame=end_frame,
+            segment_index=segment_index,
+        )
+        chunk_list.append(series_chunk)
+
+    if concatenated:
+        return np.concatenate(chunk_list, axis=0)
+    else:
+        return chunk_list
 
 
 # used by write_binary_recording + ChunkRecordingExecutor
@@ -110,7 +154,13 @@ def write_binary_imaging(
     init_func = _init_binary_worker
     init_args = (imaging, file_path_dict, dtype, byte_offset)
     executor = ChunkExecutor(
-        imaging, func, init_func, init_args, job_name="write_binary_imaging", verbose=verbose, **job_kwargs
+        imaging,
+        func,
+        init_func,
+        init_args,
+        job_name="write_binary_imaging",
+        verbose=verbose,
+        **job_kwargs,
     )
     executor.run()
 

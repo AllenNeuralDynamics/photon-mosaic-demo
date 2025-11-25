@@ -108,37 +108,35 @@ class ImagingSeriesWidget(BaseWidget):
         with plt.ioff():
             # Create figure - this will use the widget backend
             self.figure, self.ax = plt.subplots(figsize=(width_cm * cm, height_cm * cm))
-            
+
             # Get initial frame and create image
-            frame_data = dp.imaging.get_series(self.current_frame, self.current_frame + 1, segment_index=dp.segment_index)
+            frame_data = dp.imaging.get_series(
+                self.current_frame, self.current_frame + 1, segment_index=dp.segment_index
+            )
             frame = frame_data[0]
-            
+
             # Create the image object with fixed colorbar range
             self.im = self.ax.imshow(
-                frame,
-                cmap=dp.colormap,
-                vmin=self.global_vmin,
-                vmax=self.global_vmax,
-                aspect='auto'
+                frame, cmap=dp.colormap, vmin=self.global_vmin, vmax=self.global_vmax, aspect="auto"
             )
-            
+
             self.ax.set_title(f"Frame {self.current_frame} | Time: {dp.times[self.current_frame]:.3f}s")
-            self.ax.axis('off')
-            
+            self.ax.axis("off")
+
             # Add colorbar with fixed range
             self.colorbar = plt.colorbar(self.im, ax=self.ax, fraction=0.046, pad=0.04)
-            
+
             self.figure.tight_layout()
-        
+
         # Create control widgets
         self._create_control_widgets(dp)
-        
+
         # Setup layout
         self._setup_widget_layout()
-        
+
         # Setup observers
         self._setup_observers()
-        
+
         # Display if requested
         if backend_kwargs.get("display", True):
             display(self.widget)
@@ -146,14 +144,12 @@ class ImagingSeriesWidget(BaseWidget):
     def _create_control_widgets(self, dp):
         """Create all control widgets."""
         import ipywidgets as widgets
-        
+
         # Play/Pause button
         self.play_button = widgets.Button(
-            description="▶ Play",
-            button_style='success',
-            layout=widgets.Layout(width='80px')
+            description="▶ Play", button_style="success", layout=widgets.Layout(width="80px")
         )
-        
+
         # Frame slider (main time navigation)
         self.frame_slider = widgets.IntSlider(
             value=self.current_frame,
@@ -214,33 +210,31 @@ class ImagingSeriesWidget(BaseWidget):
     def _setup_widget_layout(self):
         """Arrange widgets in layout."""
         import ipywidgets as widgets
-        
+
         # Top row: play controls and time info
-        playback_controls = widgets.HBox([
-            self.play_button,
-            self.frame_slider,
-            self.time_label
-        ])
-        
+        playback_controls = widgets.HBox([self.play_button, self.frame_slider, self.time_label])
+
         # Middle row: playback speed
-        speed_controls = widgets.HBox([
-            self.fps_slider
-        ])
-        
+        speed_controls = widgets.HBox([self.fps_slider])
+
         # Bottom row: display controls
-        display_controls = widgets.HBox([
-            self.colormap_dropdown,
-            self.vmin_slider,
-            self.vmax_slider,
-        ])
-        
+        display_controls = widgets.HBox(
+            [
+                self.colormap_dropdown,
+                self.vmin_slider,
+                self.vmax_slider,
+            ]
+        )
+
         # Main layout: controls at top, matplotlib canvas below
-        self.widget = widgets.VBox([
-            playback_controls,
-            speed_controls,
-            display_controls,
-            self.figure.canvas  # Use the matplotlib canvas directly
-        ])
+        self.widget = widgets.VBox(
+            [
+                playback_controls,
+                speed_controls,
+                display_controls,
+                self.figure.canvas,  # Use the matplotlib canvas directly
+            ]
+        )
 
     def _setup_observers(self):
         """Setup widget event observers."""
@@ -269,13 +263,13 @@ class ImagingSeriesWidget(BaseWidget):
         self.im.set_data(frame)
         self.im.set_cmap(self.colormap_dropdown.value)
         self.im.set_clim(vmin=vmin_val, vmax=vmax_val)
-        
+
         # Update title
         self.ax.set_title(f"Frame {self.current_frame} | Time: {dp.times[self.current_frame]:.3f}s")
-        
+
         # Update time label
         self._update_time_label()
-        
+
         # Refresh the canvas
         self.figure.canvas.draw_idle()
 
@@ -296,11 +290,11 @@ class ImagingSeriesWidget(BaseWidget):
     def _start_playback(self):
         """Start video playback in a separate thread."""
         import threading
-        
+
         self.is_playing = True
         self.play_button.description = "⏸ Pause"
-        self.play_button.button_style = 'warning'
-        
+        self.play_button.button_style = "warning"
+
         # Start playback thread
         self.play_thread = threading.Thread(target=self._playback_loop)
         self.play_thread.daemon = True
@@ -310,33 +304,32 @@ class ImagingSeriesWidget(BaseWidget):
         """Stop video playback."""
         self.is_playing = False
         self.play_button.description = "▶ Play"
-        self.play_button.button_style = 'success'
+        self.play_button.button_style = "success"
 
     def _playback_loop(self):
         """Main playback loop running in separate thread."""
         import time
-        
+
         dp = to_attr(self.data_plot)
-        
+
         while self.is_playing and self.current_frame < dp.num_frames - 1:
             time.sleep(1.0 / self.playback_fps)
             if self.is_playing:  # Check again in case it was stopped
                 self.current_frame += 1
                 # Update slider and display
                 self.frame_slider.value = self.current_frame
-        
         # Stop when reaching the end
         if self.current_frame >= dp.num_frames - 1:
             self._stop_playback()
 
     def _on_frame_changed(self, change):
         """Handle frame slider change."""
-        self.current_frame = change['new']
+        self.current_frame = change["new"]
         self._update_display()
 
     def _on_fps_changed(self, change):
         """Handle FPS slider change."""
-        self.playback_fps = change['new']
+        self.playback_fps = change["new"]
 
     def _on_display_changed(self, change):
         """Handle display parameter changes (colormap, contrast)."""
@@ -344,7 +337,6 @@ class ImagingSeriesWidget(BaseWidget):
 
     def seek_to_frame(self, frame_number: int):
         """Seek to a specific frame.
-        
         Parameters
         ----------
         frame_number : int
@@ -353,13 +345,12 @@ class ImagingSeriesWidget(BaseWidget):
         dp = to_attr(self.data_plot)
         if 0 <= frame_number < dp.num_frames:
             self.current_frame = frame_number
-            if hasattr(self, 'frame_slider'):
+            if hasattr(self, "frame_slider"):
                 self.frame_slider.value = frame_number
             self._update_display()
 
     def seek_to_time(self, time_seconds: float):
         """Seek to a specific time.
-        
         Parameters
         ----------
         time_seconds : float

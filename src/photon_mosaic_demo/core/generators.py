@@ -17,7 +17,13 @@ def _gaussian(x, mu, sigma):
 
 
 def _generate_rois(
-    num_units=10, size_x=100, size_y=100, roi_size=4, min_dist=5, mode="uniform", seed=None
+    num_units=10,
+    size_x=100,
+    size_y=100,
+    roi_size=4,
+    min_dist=5,
+    mode="uniform",
+    seed=None,
 ):  # TODO: mode --> literal type
     """Generate ROIs with given parameters.
 
@@ -181,9 +187,9 @@ class GroundTruthImaging(BaseImaging):
         if seed is None:
             seed = np.random.default_rng(seed=None).integers(0, 2**63)
 
-        assert np.mod(sorting_sampling_frequency, sampling_frequency) == 0, (
-            "sorting_sampling_frequency needs to be a multiple of sorting_frequency"
-        )
+        assert (
+            np.mod(sorting_sampling_frequency, sampling_frequency) == 0
+        ), "sorting_sampling_frequency needs to be a multiple of sorting_frequency"
 
         # generate ROIs
         num_rois = int(num_rois)
@@ -283,12 +289,10 @@ class GroundTruthImagingSegment(BaseImagingSegment):
             end_frame_ = self.min_samples - (end_frame - start_frame)
         else:
             end_frame_ = end_frame
-            
+
         noise = self.noise_segment.get_series(start_frame, end_frame_)
-        fluo_hr = np.zeros(
-            (len(self.roi_pixels), (end_frame_ - start_frame) *  self.decimation_factor)
-        )
-        t_start = max(0, start_frame / self.sampling_frequency) # - self.kernel_duration)
+        fluo_hr = np.zeros((len(self.roi_pixels), (end_frame_ - start_frame) * self.decimation_factor))
+        t_start = max(0, start_frame / self.sampling_frequency)  # - self.kernel_duration)
         t_stop = end_frame_ / self.sampling_frequency
         sorting_sliced = self.sorting.time_slice(t_start, t_stop)
         resp = self.kernel_high_res
@@ -305,7 +309,7 @@ class GroundTruthImagingSegment(BaseImagingSegment):
                     fluo_hr[u_i, spike_index:] = resp[: num_hr_frames - spike_index]
 
         # now decimate
-        fluo_traces = fluo_hr[:, ::self.decimation_factor]
+        fluo_traces = fluo_hr[:, :: self.decimation_factor]
 
         # generate video
         fluo_video = np.zeros((noise.shape))
@@ -314,11 +318,11 @@ class GroundTruthImagingSegment(BaseImagingSegment):
                 fluo_video[:, *pixel] += fluo_trace * self.roi_values[*pixel]
 
         video = fluo_video + noise
-        return video[:(end_frame - start_frame)]
+        return video[: (end_frame - start_frame)]
 
 
 generate_gt_video = GroundTruthImaging
-        
+
 
 def generate_ground_truth_video(
     duration=10,

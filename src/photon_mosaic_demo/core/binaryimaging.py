@@ -171,7 +171,12 @@ class BinaryImagingSegment(BaseImagingSegment):
         length += start_offset
 
         # Create the mmap object
-        memmap_obj = mmap.mmap(self.file.fileno(), length=length, access=mmap.ACCESS_READ, offset=memmap_offset)
+        memmap_obj = mmap.mmap(
+            self.file.fileno(),
+            length=length,
+            access=mmap.ACCESS_READ,
+            offset=memmap_offset,
+        )
 
         # Create a numpy array using the mmap object as the buffer
         # Note that the shape must be recalculated based on the new data chunk

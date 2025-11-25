@@ -140,3 +140,9 @@ dmypy.json
 
 # MacOs
 **/.DS_Store
+
+# Jupyter Notebook 
+share/
+
+# Scripts
+Scripts/
