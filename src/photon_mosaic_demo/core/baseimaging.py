@@ -1,27 +1,21 @@
-import warnings
-from math import prod
 from typing import Optional
-
 import numpy as np
 from numpy.typing import ArrayLike, DTypeLike
+from math import prod
+import warnings
+
+
 from roiextractors.core_utils import _convert_bytes_to_str, _convert_seconds_to_str
 from spikeinterface.core.base import BaseExtractor, BaseSegment
 
-from .imaging_tools import write_binary_imaging, get_random_data_chunks
-
+from .imaging_tools import write_binary_imaging
 # TODO: frames instead of samples
 # TODO: epoch instead of segment (segmentation is another thing)
-
 
 class BaseImaging(BaseExtractor):
     """Base class for imaging extractors."""
 
-    def __init__(
-        self,
-        sampling_frequency: float,
-        shape: tuple | list | np.ndarray,
-        channel_ids: list | None = None,
-    ):
+    def __init__(self, sampling_frequency: float, shape: tuple | list | np.ndarray, channel_ids: list | None = None):
         if channel_ids is None:
             channel_ids = [0]  # fake channel
         BaseExtractor.__init__(self, channel_ids)
@@ -262,6 +256,23 @@ class BaseImaging(BaseExtractor):
             else:
                 raise ValueError("segment_index must be provided for multi-segment imaging data.")
         return self._imaging_segments[segment_index].get_times()
+
+    def set_times(self, times: ArrayLike, segment_index: int | None = None):
+        """Set the timestamps for each frame in the imaging data.
+
+        Parameters
+        ----------
+        times : ArrayLike
+            The timestamps to set.
+        segment_index : int | None
+            The index of the imaging segment. If None and there is only one segment, it defaults to 0.
+        """
+        if segment_index is None:
+            if self.get_num_segments() == 1:
+                segment_index = 0
+            else:
+                raise ValueError("segment_index must be provided for multi-segment imaging data.")
+        self._imaging_segments[segment_index].time_vector = np.asarray(times)
 
     def get_start_time(self, segment_index=None) -> float:
         """Get the start time of the recording segment.

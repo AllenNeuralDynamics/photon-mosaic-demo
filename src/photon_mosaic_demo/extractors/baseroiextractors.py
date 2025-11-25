@@ -1,44 +1,13 @@
 """Map ROI extractor implementations to BaseImaging and BaseRois"""
-
-from pathlib import Path
-
-from roiextractors.extractorlist import imaging_extractor_dict
-from roiextractors.imagingextractor import ImagingExtractor
-
+# TODO
 from ..core import BaseImaging, BaseImagingSegment
+
+from roiextractors.imagingextractor import ImagingExtractor
+from roiextractors.extractorlist import imaging_extractor_dict
 
 
 class BaseROIExtractorImaging(BaseImaging):
-    """Adapter class that wraps roiextractors imaging classes to work with BaseImaging.
-
-    This class allows you to load imaging data from various file formats (TIFF, ScanImage, etc.)
-    using the roiextractors library, and use them with the BaseImaging interface.
-
-    Parameters
-    ----------
-    imaging_name : str
-        The name of the imaging extractor from roiextractors.imaging_extractor_dict.
-        Examples: "ScanImageImagingExtractor", "TiffImagingExtractor", "BrukerTiffImagingExtractor", etc.
-    **kwargs
-        Additional keyword arguments passed to the roiextractors imaging class.
-        These vary by format (e.g., file_path, channel_name, etc.)
-
-    Examples
-    --------
-    Load a ScanImage TIFF file:
-    >>> imaging = BaseROIExtractorImaging(
-    ...     imaging_name="ScanImageImagingExtractor",
-    ...     file_path="path/to/data.tif",
-    ...     channel_name="Channel 1"
-    ... )
-    >>> frames = imaging.get_series(start_frame=0, end_frame=10)
-
-    Load a standard TIFF file:
-    >>> imaging = BaseROIExtractorImaging(
-    ...     imaging_name="TiffImagingExtractor",
-    ...     file_path="path/to/data.tif"
-    ... )
-    """
+    """Base class for ROI extractors that work with BaseImaging data."""
 
     def __init__(self, imaging_name: str, **kwargs):
         self.roiextractor_imaging_class = imaging_extractor_dict[imaging_name]

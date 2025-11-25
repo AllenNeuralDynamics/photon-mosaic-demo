@@ -1,15 +1,14 @@
 from __future__ import annotations
-
-import json
 import mmap
 import warnings
+import json
 from pathlib import Path
 
 import numpy as np
-from spikeinterface.core.job_tools import _shared_job_kwargs_doc
 
 from .baseimaging import BaseImaging, BaseImagingSegment
 from .imaging_tools import write_binary_imaging
+from spikeinterface.core.job_tools import _shared_job_kwargs_doc
 
 
 class BinaryImaging(BaseImaging):
@@ -125,7 +124,9 @@ class BinaryImaging(BaseImaging):
                 del segment
 
 
-BinaryImaging.write_imaging.__doc__ = BinaryImaging.write_imaging.__doc__.format(_shared_job_kwargs_doc)
+BinaryImaging.write_imaging.__doc__ = BinaryImaging.write_imaging.__doc__.format(
+    _shared_job_kwargs_doc
+)
 
 
 class BinaryImagingSegment(BaseImagingSegment):

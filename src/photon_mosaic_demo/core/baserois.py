@@ -87,6 +87,10 @@ class BaseRois(BaseExtractor):
         """
         return self._image_shape
 
+<<<<<<< HEAD
+=======
+
+>>>>>>> 8981c9cbbed6f5d96d4c512f186b0e22cff2df9a
     @property
     def sampling_frequency(self):
         return self._sampling_frequency

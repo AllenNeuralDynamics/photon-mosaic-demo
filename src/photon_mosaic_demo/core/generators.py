@@ -11,7 +11,6 @@ import numpy as np
 from .baseimaging import BaseImaging, BaseImagingSegment
 from .numpyimaging import NumpyImaging
 
-
 def _gaussian(x, mu, sigma):
     """Compute classical gaussian with parameters x, mu, sigma."""
     return 1 / np.sqrt(2 * np.pi * sigma) * np.exp(-((x - mu) ** 2) / sigma)
@@ -108,27 +107,20 @@ def _generate_rois(
 
 class NoiseGeneratorImaging(BaseImaging):
 
-    def __init__(
-        self,
-        sampling_frequency=30,
-        durations=[10],
-        width=100,
-        height=100,
-        noise_std=0.05,
-        seed=None,
-        **noise_kwargs,
-    ):
+    def __init__(self, sampling_frequency=30, durations=[10], width=100, height=100, noise_std=0.05, seed=None, **noise_kwargs):
         from spikeinterface.core.generate import NoiseGeneratorRecording
-
-        super().__init__(sampling_frequency=sampling_frequency, shape=(width, height))
+        super().__init__(
+            sampling_frequency=sampling_frequency,
+            shape=(width, height)
+        )
         self.noise_generator_recording = NoiseGeneratorRecording(
             num_channels=self.get_num_pixels(),
-            sampling_frequency=sampling_frequency,
-            durations=durations,
-            noise_levels=noise_std,
+            sampling_frequency = sampling_frequency,
+            durations = durations,
+            noise_levels = noise_std,
             seed=seed,
             noise_block_size=100,
-            **noise_kwargs,
+            **noise_kwargs
         )
         seed = self.noise_generator_recording._kwargs["seed"]
 
@@ -138,20 +130,20 @@ class NoiseGeneratorImaging(BaseImaging):
                     sampling_frequency=sampling_frequency,
                     noise_generator=self.noise_generator_recording,
                     segment_index=segment_index,
-                    image_shape=self.image_shape,
+                    image_shape=self.image_shape
                 )
             )
 
         self._kwargs = dict(
             sampling_frequency=sampling_frequency,
-            durations=durations,
+            durations=durations, 
             width=width,
             height=height,
-            noise_std=noise_std,
-            seed=seed,
+            noise_std=noise_std, 
+            seed=seed
         )
         self._kwargs.update(noise_kwargs)
-
+        
 
 class NoiseGeneratorImagingSegment(BaseImagingSegment):
 
@@ -168,14 +160,13 @@ class NoiseGeneratorImagingSegment(BaseImagingSegment):
         traces = self.noise_generator.get_traces(
             start_frame=start_frame,
             end_frame=end_frame,
-            segment_index=self.segment_index,
+            segment_index=self.segment_index
         )
         video_shape = (traces.shape[0], self.image_shape[0], self.image_shape[1])
         return traces.reshape(video_shape)
 
-
 class GroundTruthImaging(BaseImaging):
-
+    
     def __init__(
         self,
         durations=[10],
@@ -189,7 +180,7 @@ class GroundTruthImaging(BaseImaging):
         sorting_sampling_frequency=30_000,
         decay_time=0.5,
         noise_std=0.05,
-        seed=None,
+        seed=None
     ):
         from spikeinterface.core.generate import generate_sorting
 
@@ -209,7 +200,7 @@ class GroundTruthImaging(BaseImaging):
             roi_size=roi_size,
             min_dist=min_dist,
             mode=mode,
-            seed=seed,
+            seed=seed
         )
 
         self.noise_generator = NoiseGeneratorImaging(
@@ -217,14 +208,12 @@ class GroundTruthImaging(BaseImaging):
             width=width,
             height=height,
             noise_std=noise_std,
-            seed=seed,
+            seed=seed
         )
-
+        
         self.sorting = generate_sorting(
-            durations=durations,
-            num_units=num_rois,
-            sampling_frequency=sorting_sampling_frequency,
-            seed=seed,
+            durations=durations, num_units=num_rois, sampling_frequency=sorting_sampling_frequency,
+            seed=seed
         )
 
         self.noise_generator = NoiseGeneratorImaging(
@@ -251,7 +240,7 @@ class GroundTruthImaging(BaseImaging):
                 sorting=self.sorting,
                 roi_pixels=roi_pixels,
                 roi_values=roi_values,
-                kernel=kernel,
+                kernel=kernel
             )
             self.add_imaging_segment(gt_segment)
 
@@ -280,7 +269,7 @@ class GroundTruthImagingSegment(BaseImagingSegment):
         roi_pixels,
         roi_values,
         kernel,
-        min_samples=10,
+        min_samples=10
     ):
         super().__init__(sampling_frequency=sampling_frequency)
         self.noise_segment = noise_segment
