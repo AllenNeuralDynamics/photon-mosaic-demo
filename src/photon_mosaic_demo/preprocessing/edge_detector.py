@@ -12,19 +12,25 @@ class EdgeDetectorImaging(BasePreprocessor):
 
         self._kwargs = dict(imaging=imaging)
 
-
+# TODO: use canny or other methods
 class EdgeDetectorImagingSegment(BasePreprocessorSegment):
 
     def __init__(self, parent_imaging_segment):
         BasePreprocessorSegment.__init__(self, parent_imaging_segment)
 
     def get_series(self, start_frame, end_frame):
-        import numpy as np
-        from scipy.ndimage import sobel
+        from skimage.feature import canny
+        edges = np.zeros_like(video, dtype=bool)
 
-        data = self.parent_imaging_segment.get_series(start_frame, end_frame)
-        filtered_data = sobel(data, axis=-1)
-        return filtered_data
+        for i in range(video.shape[0]):
+            edges[i] = canny(
+                video[i],
+                sigma=sigma,
+                low_threshold=low_threshold,
+                high_threshold=high_threshold
+        )
+
+        return edges
 
 
 edge_detector = EdgeDetectorImaging

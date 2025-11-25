@@ -102,10 +102,8 @@ class ImagingSeriesWidget(BaseWidget):
         cm = 1 / 2.54
         width_cm = backend_kwargs.get("width_cm", 12)
         ratio = dp.imaging.image_shape[1] / dp.imaging.image_shape[0]
-        print(ratio)
         height_cm = width_cm / ratio
 
-        print(width_cm, height_cm)
         # add some caching here
         # Turn off interactive mode to prevent duplicate display
         with plt.ioff():
