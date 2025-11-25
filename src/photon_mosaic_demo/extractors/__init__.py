@@ -84,7 +84,7 @@ for imaging_name, imaging_class in imaging_extractor_dict.items():
     read_func = make_read_function(dynamic_class, imaging_class)
     read_func.__name__ = read_func_name
     read_func.__qualname__ = read_func_name
-    read_func.__doc__ = imaging_class-__doc__
+    read_func.__doc__ = imaging_class.__doc__
 
     globals()[read_func_name] = read_func
     __all__.append(read_func_name)
