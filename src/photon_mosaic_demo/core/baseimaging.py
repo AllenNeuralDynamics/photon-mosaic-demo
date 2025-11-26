@@ -308,6 +308,16 @@ class BaseImaging(BaseExtractor):
         rs = self._imaging_segments[segment_index]
         return rs.get_end_time()
 
+    def get_sample_size(self) -> int:
+        """Get the size of a single sample in bytes.
+
+        Returns
+        -------
+        int
+            The size of a single sample in bytes.
+        """
+        return self.get_sample_size_in_bytes(
+        )
     def has_time_vector(self, segment_index: Optional[int] = None):
         """Check if the segment of the recording has a time vector.
 
