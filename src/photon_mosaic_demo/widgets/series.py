@@ -100,8 +100,9 @@ class ImagingSeriesWidget(BaseWidget):
         
         # Create matplotlib figure with proper size
         cm = 1 / 2.54
-        width_cm = backend_kwargs.get("width_cm", 15)
-        height_cm = backend_kwargs.get("height_cm", 12)
+        width_cm = backend_kwargs.get("width_cm", 12)
+        ratio = dp.imaging.image_shape[1] / dp.imaging.image_shape[0]
+        height_cm = width_cm / ratio
 
         # add some caching here
         # Turn off interactive mode to prevent duplicate display

@@ -94,6 +94,17 @@ class BaseImaging(BaseExtractor):
             html_segments += "</ol></details>"
 
         html_extra = self._get_common_repr_html(common_style)
+        # remove properties from html_extra
+        if "<summary><strong>Properties</strong></summary>" in html_extra:
+            start = html_extra.find("<details style='")
+            # Find the Properties section specifically
+            properties_start = html_extra.find("<summary><strong>Properties</strong></summary>")
+            if properties_start != -1:
+                # Find the start of the details tag containing Properties
+                details_start = html_extra.rfind("<details", 0, properties_start)
+                # Find the end of that details section
+                details_end = html_extra.find("</details>", properties_start) + len("</details>")
+                html_extra = html_extra[:details_start] + html_extra[details_end:]
         html_repr = html_header + html_segments + html_extra
         return html_repr
 
