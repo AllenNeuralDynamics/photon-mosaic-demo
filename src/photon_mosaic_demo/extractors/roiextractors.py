@@ -1,9 +1,13 @@
 """Map ROI extractor implementations to BaseImaging and BaseRois"""
-# TODO
-from ..core import BaseImaging, BaseImagingSegment
+
+import re
+import inspect
+from pathlib import Path
 
 from roiextractors.imagingextractor import ImagingExtractor
-from roiextractors.extractorlist import imaging_extractor_dict
+from roiextractors.extractorlist import imaging_extractor_dict, segmentation_extractor_dict
+
+from photon_mosaic_demo.core import BaseImaging, BaseImagingSegment, BaseRois
 
 
 class BaseROIExtractorImaging(BaseImaging):
@@ -13,12 +17,11 @@ class BaseROIExtractorImaging(BaseImaging):
         self.roiextractor_imaging_class = imaging_extractor_dict[imaging_name]
 
         roi_extractor = self.roiextractor_imaging_class(**kwargs)
-        width, height = roi_extractor.get_sample_shape()
 
         segment = BaseROIExtractorImagingSegment(roi_extractor)
         BaseImaging.__init__(
             self,
-            shape=(width, height),
+            shape=roi_extractor.get_sample_shape(),
             sampling_frequency=roi_extractor.get_sampling_frequency(),
         )
         self.add_imaging_segment(segment)
@@ -39,29 +42,6 @@ class BaseROIExtractorImagingSegment(BaseImagingSegment):
 
     def get_series(self, start_frame=None, end_frame=None):
         return self.roiextractor_extractor.get_series(start_frame, end_frame)
-
-
-# def auto_add_roiextractor_methods():
-#     """Automatically add all methods from ImagingExtractor to BaseROIExtractorImagingSegment."""
-#     for method_name in dir(ImagingExtractor):
-#         if not method_name.startswith("_") and callable(
-#             getattr(ImagingExtractor, method_name)
-#         ):
-#             if hasattr(BaseROIExtractorImagingSegment, method_name):
-#                 continue
-
-#             def make_wrapper(method_name):
-#                 def wrapper(self, *args, **kwargs):
-#                     return getattr(self.roiextractor_extractor, method_name)(
-#                         *args, **kwargs
-#                     )
-
-#                 wrapper.__name__ = method_name
-#                 return wrapper
-
-#             setattr(
-#                 BaseROIExtractorImagingSegment, method_name, make_wrapper(method_name)
-#             )
 
 
 def get_imaging_extractor(file_path: str, imaging_name: str | None = None, **kwargs) -> BaseROIExtractorImaging:
@@ -150,3 +130,79 @@ def get_imaging_extractor(file_path: str, imaging_name: str | None = None, **kwa
             f"No suitable imaging extractor found for {file_path}. "
             f"Supported formats: .tif, .tiff, .sbx, .h5, .hdf5, .nwb"
         )
+
+
+# Dynamically create classes and read functions for all imaging extractors
+from roiextractors.extractorlist import imaging_extractor_dict
+
+
+def get_classes_and_functions_to_import():
+    import_classes, import_functions = [], []
+    for imaging_name, imaging_class in imaging_extractor_dict.items():
+        # Dynamically create a class for each imaging extractor
+        # The class inherits from BaseROIExtractorImaging and sets imaging_name automatically
+
+        def make_class(extractor_name):
+            """Factory function to create a class with proper closure over extractor_name."""
+
+            class DynamicImagingClass(BaseROIExtractorImaging):
+                """Dynamically generated imaging class for {extractor_name}."""
+
+                def __init__(self, **kwargs):
+                    super().__init__(imaging_name=extractor_name, **kwargs)
+
+            # Set proper class name and module
+            DynamicImagingClass.__name__ = extractor_name
+            DynamicImagingClass.__qualname__ = extractor_name
+            DynamicImagingClass.__doc__ = imaging_class.__doc__
+
+            return DynamicImagingClass
+
+        # Create the class
+        imaging_class_photon_mosaic = make_class(imaging_name)
+        import_classes.append(imaging_class_photon_mosaic)
+
+        # Create a read_* function that instantiates the class
+        def make_read_function(cls, extractor_cls):
+            """Factory function to create a read function with proper closure and signature."""
+            # Get the signature from the original extractor class
+            try:
+                sig = inspect.signature(extractor_cls.__init__)
+                # Remove 'self' parameter
+                params = [p for name, p in sig.parameters.items() if name != "self"]
+            except Exception:
+                # Fallback if we can't get the signature
+                params = [inspect.Parameter("kwargs", inspect.Parameter.VAR_KEYWORD)]
+
+            def read_function(*args, **kwargs):
+                """Convenience function to create an instance of {cls.__name__}.
+
+                Returns
+                -------
+                {cls.__name__}
+                    An instance of the imaging class.
+                """
+                return cls(*args, **kwargs)
+
+            # Set the signature on the function
+            read_function.__signature__ = inspect.Signature(parameters=params)
+
+            return read_function
+
+        # Create and add the read function
+        # Convert CamelCase to snake_case, handling consecutive capitals like TIFF
+        # Insert underscore before uppercase letters that are followed by lowercase
+        snake_case_name = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", imaging_name)
+        snake_case_name = re.sub(r"([a-z\d])([A-Z])", r"\1_\2", snake_case_name)
+        snake_case_name = snake_case_name.lower()
+        # Remove _extractor suffix
+        snake_case_name = snake_case_name.replace("_extractor", "")
+        read_func_name = f"read_{snake_case_name}"
+        read_func = make_read_function(imaging_class_photon_mosaic, imaging_class)
+        read_func.__name__ = read_func_name
+        read_func.__qualname__ = read_func_name
+        read_func.__doc__ = imaging_class.__doc__
+
+        import_functions.append(read_func)
+
+    return import_classes, import_functions

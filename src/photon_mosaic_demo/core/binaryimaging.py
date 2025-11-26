@@ -21,8 +21,8 @@ class BinaryImaging(BaseImaging):
         Path to the binary file
     sampling_frequency : float
         The sampling frequency
-    image_shape : tuble(int, int)
-        Image width and height
+    image_shape : tuple(int, int)
+        Image height and width
     dtype : str or dtype
         The dtype of the binary file
     time_axis : int, default: 0
@@ -124,9 +124,7 @@ class BinaryImaging(BaseImaging):
                 del segment
 
 
-BinaryImaging.write_imaging.__doc__ = BinaryImaging.write_imaging.__doc__.format(
-    _shared_job_kwargs_doc
-)
+BinaryImaging.write_imaging.__doc__ = BinaryImaging.write_imaging.__doc__.format(_shared_job_kwargs_doc)
 
 
 class BinaryImagingSegment(BaseImagingSegment):
@@ -254,7 +252,6 @@ class BinaryFolderImaging(BinaryImaging):
             file_paths=self._bin_kwargs["file_paths"],
             dtype=np.dtype(self._bin_kwargs["dtype"]),
             image_shape=self._bin_kwargs["image_shape"],
-            time_axis=self._bin_kwargs["time_axis"],
             file_offset=self._bin_kwargs["file_offset"],
         )
         return d
