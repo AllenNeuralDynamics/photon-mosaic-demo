@@ -1,4 +1,4 @@
-from ..core.baseimaging import BaseImaging
+from photon_mosaic_demo.core.baseimaging import BaseImaging
 
 from spikeinterface.widgets.base import BaseWidget, to_attr
 import numpy as np
@@ -6,14 +6,15 @@ import numpy as np
 
 class ImagingSeriesWidget(BaseWidget):
     """Widget for visualizing an ImagingExtractor series with interactive controls.
-    
+
     This widget provides an interactive video player for imaging data using ipywidgets,
     following the SpikeInterface BaseWidget design pattern.
-    
+
     Parameters
     ----------
-    imaging : BaseImaging
-        The imaging extractor to visualize
+    imaging : BaseImaging or dict[str, BaseImaging]
+        The imaging extractor to visualize. Can be a single BaseImaging object or
+        a dictionary of BaseImaging objects for synchronized multi-view display.
     segment_index : int, optional
         Which segment to display, by default 0
     frame_index : int, optional
@@ -34,40 +35,67 @@ class ImagingSeriesWidget(BaseWidget):
 
     def __init__(
         self,
-        imaging: BaseImaging,
+        imaging: BaseImaging | dict,
         segment_index: int = 0,
         frame_index: int = 0,
         time_range: tuple = None,
-        colormap: str = 'gray',
+        colormap: str = "gray",
         vmin_percentile: float = 2.0,
         vmax_percentile: float = 98.0,
         backend=None,
-        **backend_kwargs
+        **backend_kwargs,
     ):
-        # Get imaging properties
-        num_frames = imaging.get_num_samples(segment_index=segment_index)
-        times = imaging.get_times(segment_index=segment_index)
+        # Check if imaging is a dictionary
+        is_multi_view = isinstance(imaging, dict)
+        
+        if is_multi_view:
+            # Get the first imaging object to extract common properties
+            first_key = list(imaging.keys())[0]
+            first_imaging = imaging[first_key]
+            
+            # Validate all imaging objects have the same number of frames
+            num_frames = first_imaging.get_num_samples(segment_index=segment_index)
+            times = first_imaging.get_times(segment_index=segment_index)
+            frame_rate = first_imaging.sampling_frequency
+            
+            for name, img in imaging.items():
+                if img.get_num_samples(segment_index=segment_index) != num_frames:
+                    raise ValueError(f"All imaging objects must have the same number of frames. "
+                                   f"'{name}' has {img.get_num_samples(segment_index=segment_index)} frames, "
+                                   f"expected {num_frames}")
+            
+            imaging_dict = imaging
+            view_names = list(imaging.keys())
+        else:
+            # Single imaging object - wrap in dict for consistent handling
+            imaging_dict = {"imaging": imaging}
+            view_names = ["imaging"]
+            num_frames = imaging.get_num_samples(segment_index=segment_index)
+            times = imaging.get_times(segment_index=segment_index)
+            frame_rate = imaging.sampling_frequency
 
         # Validate parameters
         frame_index = max(0, min(frame_index, num_frames - 1))
-        
+
         if time_range is None:
             time_range = (times[0], times[-1])
-        
+
         # Prepare data for plotting
         data_plot = dict(
-            imaging=imaging,
+            imaging_dict=imaging_dict,
+            view_names=view_names,
+            is_multi_view=is_multi_view,
             segment_index=segment_index,
             num_frames=num_frames,
             times=times,
-            frame_rate=imaging.sampling_frequency,
+            frame_rate=frame_rate,
             frame_index=frame_index,
             time_range=time_range,
             colormap=colormap,
             vmin_percentile=vmin_percentile,
             vmax_percentile=vmax_percentile,
         )
-        
+
         BaseWidget.__init__(self, data_plot, backend=backend, **backend_kwargs)
 
     def plot_ipywidgets(self, data_plot, **backend_kwargs):
@@ -80,52 +108,87 @@ class ImagingSeriesWidget(BaseWidget):
         check_ipywidget_backend()
 
         dp = to_attr(data_plot)
-        
+
         # Store data for updates
         self.data_plot = data_plot
         self.current_frame = dp.frame_index
         self.is_playing = False
         self.play_thread = None
         self.playback_fps = min(10.0, dp.frame_rate)  # Default playback speed
-        
+
         # Calculate global contrast range from multiple frames for consistent colorbar
         # Sample frames throughout the video to get representative range
         num_samples = 100
-        # TODO: get_random_frames insted
-        sampled_data = dp.imaging.get_series(0, num_samples, segment_index=dp.segment_index)
         
-        # Calculate global percentiles for fixed colorbar range
-        self.global_vmin = np.percentile(sampled_data, dp.vmin_percentile)
-        self.global_vmax = np.percentile(sampled_data, dp.vmax_percentile)
+        # Store global vmin/vmax for each view
+        self.global_vmin = {}
+        self.global_vmax = {}
         
+        for view_name, imaging in dp.imaging_dict.items():
+            # TODO: get_random_frames instead
+            sampled_data = imaging.get_series(0, num_samples, segment_index=dp.segment_index)
+            # Calculate global percentiles for fixed colorbar range
+            self.global_vmin[view_name] = np.percentile(sampled_data, dp.vmin_percentile)
+            self.global_vmax[view_name] = np.percentile(sampled_data, dp.vmax_percentile)
+
         # Create matplotlib figure with proper size
         cm = 1 / 2.54
         width_cm = backend_kwargs.get("width_cm", 12)
-        ratio = dp.imaging.image_shape[1] / dp.imaging.image_shape[0]
-        height_cm = width_cm / ratio
+        
+        # Get dimensions from first imaging object
+        first_imaging = dp.imaging_dict[dp.view_names[0]]
+        ratio = first_imaging.image_shape[0] / first_imaging.image_shape[1]
+        height_cm = width_cm * ratio
+        
+        num_views = len(dp.view_names)
 
-        # add some caching here
         # Turn off interactive mode to prevent duplicate display
         with plt.ioff():
-            # Create figure - this will use the widget backend
-            self.figure, self.ax = plt.subplots(figsize=(width_cm * cm, height_cm * cm))
+            # Create figure with multiple subplots if needed
+            if num_views > 1:
+                self.figure, self.axes = plt.subplots(
+                    1, num_views, 
+                    figsize=(width_cm * num_views * cm, height_cm * cm)
+                )
+                if num_views == 1:
+                    self.axes = [self.axes]  # Make it a list for consistency
+            else:
+                self.figure, ax = plt.subplots(figsize=(width_cm * cm, height_cm * cm))
+                self.axes = [ax]
 
-            # Get initial frame and create image
-            frame_data = dp.imaging.get_series(
-                self.current_frame, self.current_frame + 1, segment_index=dp.segment_index
-            )
-            frame = frame_data[0]
+            # Store image objects and colorbars for each view
+            self.images = {}
+            self.colorbars = {}
+            
+            for idx, view_name in enumerate(dp.view_names):
+                imaging = dp.imaging_dict[view_name]
+                ax = self.axes[idx]
+                
+                # Get initial frame and create image
+                frame_data = imaging.get_series(
+                    self.current_frame, self.current_frame + 1, segment_index=dp.segment_index
+                )
+                frame = frame_data[0]
 
-            # Create the image object with fixed colorbar range
-            self.im = self.ax.imshow(
-                frame, cmap=dp.colormap, vmin=self.global_vmin, vmax=self.global_vmax, aspect="auto"
-            )
+                # Create the image object with fixed colorbar range
+                im = ax.imshow(
+                    frame, cmap=dp.colormap, 
+                    vmin=self.global_vmin[view_name], 
+                    vmax=self.global_vmax[view_name], 
+                    aspect="auto"
+                )
+                
+                self.images[view_name] = im
 
-            self.ax.set_title(f"Frame {self.current_frame} | Time: {dp.times[self.current_frame]:.3f}s")
-            self.ax.axis("off")
+                if dp.is_multi_view:
+                    ax.set_title(f"{view_name}\nFrame {self.current_frame} | Time: {dp.times[self.current_frame]:.3f}s")
+                else:
+                    ax.set_title(f"Frame {self.current_frame} | Time: {dp.times[self.current_frame]:.3f}s")
+                    
+                ax.axis("off")
 
-            # Add colorbar with fixed range
-            self.colorbar = plt.colorbar(self.im, ax=self.ax, fraction=0.046, pad=0.04)
+                # Add colorbar with fixed range
+                self.colorbars[view_name] = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
 
             self.figure.tight_layout()
 
@@ -157,55 +220,55 @@ class ImagingSeriesWidget(BaseWidget):
             min=0,
             max=dp.num_frames - 1,
             step=1,
-            description='Frame:',
+            description="Frame:",
             continuous_update=False,
-            layout=widgets.Layout(width='400px')
+            layout=widgets.Layout(width="400px"),
         )
-        
+
         # Time display
         self.time_label = widgets.Label(
             value=f"Time: {dp.times[self.current_frame]:.3f}s / {dp.times[-1]:.2f}s",
-            layout=widgets.Layout(width='200px')
+            layout=widgets.Layout(width="200px"),
         )
-        
+
         # Playback speed control
         self.fps_slider = widgets.FloatSlider(
             value=self.playback_fps,
             min=0.1,
             max=min(30.0, dp.frame_rate),
             step=0.1,
-            description='Speed (fps):',
+            description="Speed (fps):",
             continuous_update=True,
-            layout=widgets.Layout(width='250px')
+            layout=widgets.Layout(width="250px"),
         )
-        
+
         # Colormap selection
         self.colormap_dropdown = widgets.Dropdown(
-            options=['gray', 'viridis', 'plasma', 'inferno', 'magma', 'hot', 'cool', 'jet'],
+            options=["gray", "viridis", "plasma", "inferno", "magma", "hot", "cool", "jet"],
             value=dp.colormap,
-            description='Colormap:',
-            layout=widgets.Layout(width='150px')
+            description="Colormap:",
+            layout=widgets.Layout(width="150px"),
         )
-        
+
         # Contrast controls - now as percentage of global range
         self.vmin_slider = widgets.FloatSlider(
             value=0.0,  # Start at minimum of range
             min=0,
             max=100,
             step=1.0,
-            description='Min %:',
+            description="Min %:",
             continuous_update=True,
-            layout=widgets.Layout(width='150px')
+            layout=widgets.Layout(width="300px"),
         )
-        
+
         self.vmax_slider = widgets.FloatSlider(
             value=100.0,  # Start at maximum of range
             min=0,
             max=100,
             step=1.0,
-            description='Max %:',
+            description="Max %:",
             continuous_update=True,
-            layout=widgets.Layout(width='150px')
+            layout=widgets.Layout(width="300px"),
         )
 
     def _setup_widget_layout(self):
@@ -240,33 +303,42 @@ class ImagingSeriesWidget(BaseWidget):
     def _setup_observers(self):
         """Setup widget event observers."""
         self.play_button.on_click(self._on_play_button_clicked)
-        self.frame_slider.observe(self._on_frame_changed, names='value')
-        self.fps_slider.observe(self._on_fps_changed, names='value')
-        self.colormap_dropdown.observe(self._on_display_changed, names='value')
-        self.vmin_slider.observe(self._on_display_changed, names='value')
-        self.vmax_slider.observe(self._on_display_changed, names='value')
+        self.frame_slider.observe(self._on_frame_changed, names="value")
+        self.fps_slider.observe(self._on_fps_changed, names="value")
+        self.colormap_dropdown.observe(self._on_display_changed, names="value")
+        self.vmin_slider.observe(self._on_display_changed, names="value")
+        self.vmax_slider.observe(self._on_display_changed, names="value")
 
     def _update_display(self):
         """Update the image display."""
         dp = to_attr(self.data_plot)
-        
-        # Get current frame data
-        frame_data = dp.imaging.get_series(self.current_frame, self.current_frame + 1, segment_index=dp.segment_index)
-        frame = frame_data[0]  # Remove time dimension
-        
-        # Use slider values as scaling factors on the global range
-        # This keeps the colorbar fixed but allows user adjustment
-        range_span = self.global_vmax - self.global_vmin
-        vmin_val = self.global_vmin + (self.vmin_slider.value / 100.0) * range_span
-        vmax_val = self.global_vmin + (self.vmax_slider.value / 100.0) * range_span
-        
-        # Update the image data and colormap (much faster than recreating)
-        self.im.set_data(frame)
-        self.im.set_cmap(self.colormap_dropdown.value)
-        self.im.set_clim(vmin=vmin_val, vmax=vmax_val)
 
-        # Update title
-        self.ax.set_title(f"Frame {self.current_frame} | Time: {dp.times[self.current_frame]:.3f}s")
+        # Update all views
+        for idx, view_name in enumerate(dp.view_names):
+            imaging = dp.imaging_dict[view_name]
+            ax = self.axes[idx]
+            im = self.images[view_name]
+            
+            # Get current frame data
+            frame_data = imaging.get_series(self.current_frame, self.current_frame + 1, segment_index=dp.segment_index)
+            frame = frame_data[0]  # Remove time dimension
+
+            # Use slider values as scaling factors on the global range
+            # This keeps the colorbar fixed but allows user adjustment
+            range_span = self.global_vmax[view_name] - self.global_vmin[view_name]
+            vmin_val = self.global_vmin[view_name] + (self.vmin_slider.value / 100.0) * range_span
+            vmax_val = self.global_vmin[view_name] + (self.vmax_slider.value / 100.0) * range_span
+
+            # Update the image data and colormap (much faster than recreating)
+            im.set_data(frame)
+            im.set_cmap(self.colormap_dropdown.value)
+            im.set_clim(vmin=vmin_val, vmax=vmax_val)
+
+            # Update title
+            if dp.is_multi_view:
+                ax.set_title(f"{view_name}\nFrame {self.current_frame} | Time: {dp.times[self.current_frame]:.3f}s")
+            else:
+                ax.set_title(f"Frame {self.current_frame} | Time: {dp.times[self.current_frame]:.3f}s")
 
         # Update time label
         self._update_time_label()
@@ -363,64 +435,4 @@ class ImagingSeriesWidget(BaseWidget):
         self.seek_to_frame(frame_idx)
 
 
-# Convenience function following SpikeInterface pattern
-def plot_imaging_series(
-    imaging: BaseImaging,
-    segment_index: int = 0,
-    frame_index: int = 0,
-    time_range: tuple = None,
-    colormap: str = 'gray',
-    vmin_percentile: float = 2.0,
-    vmax_percentile: float = 98.0,
-    backend: str = None,
-    **backend_kwargs
-) -> ImagingSeriesWidget:
-    """Plot an imaging series with interactive video controls.
-    
-    This function creates an interactive video player for imaging data following
-    the SpikeInterface widget conventions.
-    
-    Parameters
-    ----------
-    imaging : BaseImaging
-        The imaging data to display
-    segment_index : int, optional
-        Which segment to display, by default 0
-    frame_index : int, optional
-        Initial frame to display, by default 0
-    time_range : tuple, optional
-        Time range to display (start, end) in seconds, by default None (full range)
-    colormap : str, optional
-        Colormap for image display, by default 'gray'
-    vmin_percentile : float, optional
-        Minimum percentile for contrast (0-100), by default 2.0
-    vmax_percentile : float, optional
-        Maximum percentile for contrast (0-100), by default 98.0
-    backend : str, optional
-        Backend to use ('ipywidgets'), by default None
-    **backend_kwargs
-        Additional backend-specific arguments
-        
-    Returns
-    -------
-    ImagingSeriesWidget
-        The imaging series widget object
-        
-    Examples
-    --------
-    >>> # Interactive ipywidgets display
-    >>> w = plot_imaging_series(imaging_data, backend="ipywidgets")
-    >>> w.seek_to_time(2.5)  # Jump to 2.5 seconds
-    >>> w.seek_to_frame(100)  # Jump to frame 100
-    """
-    return ImagingSeriesWidget(
-        imaging=imaging,
-        segment_index=segment_index,
-        frame_index=frame_index,
-        time_range=time_range,
-        colormap=colormap,
-        vmin_percentile=vmin_percentile,
-        vmax_percentile=vmax_percentile,
-        backend=backend,
-        **backend_kwargs
-    )
+plot_imaging_series = ImagingSeriesWidget

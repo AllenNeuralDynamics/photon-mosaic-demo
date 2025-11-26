@@ -1,1 +1,2 @@
-from .series import ImagingSeriesWidget, plot_imaging_series
+from .series import plot_imaging_series
+from .rois import plot_rois

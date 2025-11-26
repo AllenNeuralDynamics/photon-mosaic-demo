@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ..core import BaseImaging, BaseImagingSegment
+from photon_mosaic_demo.core import BaseImaging, BaseImagingSegment
 
 
 class BasePreprocessor(BaseImaging):

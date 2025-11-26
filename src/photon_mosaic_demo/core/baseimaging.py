@@ -9,8 +9,10 @@ from roiextractors.core_utils import _convert_bytes_to_str, _convert_seconds_to_
 from spikeinterface.core.base import BaseExtractor, BaseSegment
 
 from .imaging_tools import write_binary_imaging, get_random_data_chunks
+
 # TODO: frames instead of samples
 # TODO: epoch instead of segment (segmentation is another thing)
+
 
 class BaseImaging(BaseExtractor):
     """Base class for imaging extractors."""
@@ -20,7 +22,7 @@ class BaseImaging(BaseExtractor):
             channel_ids = [0]  # fake channel
         BaseExtractor.__init__(self, channel_ids)
         self._sampling_frequency = float(sampling_frequency)
-        assert len(shape) == 2, "Shape must be a tuple/list/array of length 2 (width, height)"
+        assert len(shape) == 2, "Shape must be a tuple/list/array of length 2 (height, width)"
         self._image_shape = np.array(shape)
         self._imaging_segments: list[BaseImagingSegment] = []
         self._average_image = None
@@ -62,7 +64,7 @@ class BaseImaging(BaseExtractor):
             f"{name}:\n"
             f"{sampling_frequency_repr} - "
             f"{self.get_num_segments()} segments - "
-            f"{image_shape_repr} samples - "
+            f"{image_shape_repr} - "
             f"{duration_repr} - "
             f"{dtype} dtype - "
             f"{memory_repr}"
@@ -337,34 +339,6 @@ class BaseImaging(BaseExtractor):
         d = rs.get_times_kwargs()
         return d["time_vector"] is not None
 
-    def set_times(self, times, segment_index=None, with_warning=True):
-        """Set times for a recording segment.
-
-        Parameters
-        ----------
-        times : 1d np.array
-            The time vector
-        segment_index : int or None, default: None
-            The segment index (required for multi-segment)
-        with_warning : bool, default: True
-            If True, a warning is printed
-        """
-        segment_index = self._check_segment_index(segment_index)
-        rs = self._imaging_segments[segment_index]
-
-        assert times.ndim == 1, "Time must have ndim=1"
-        assert rs.get_num_samples() == times.shape[0], "times have wrong shape"
-
-        rs.t_start = None
-        rs.time_vector = times.astype("float64", copy=False)
-
-        if with_warning:
-            warnings.warn(
-                "Setting times with Recording.set_times() is not recommended because "
-                "times are not always propagated across preprocessing"
-                "Use this carefully!"
-            )
-
     def reset_times(self):
         """
         Reset time information in-memory for all segments that have a time vector.
@@ -421,6 +395,27 @@ class BaseImaging(BaseExtractor):
         segment_index = self._check_segment_index(segment_index)
         rs = self._imaging_segments[segment_index]
         return rs.time_to_sample_index(time_s)
+
+    def is_binary_compatible(self) -> bool:
+        """
+        Checks if the recording is "binary" compatible.
+        To be used before calling `rec.get_binary_description()`
+
+        Returns
+        -------
+        bool
+            True if the underlying recording is binary
+        """
+        # has to be changed in subclass if yes
+        return False
+
+    def get_binary_description(self):
+        """
+        When `rec.is_binary_compatible()` is True
+        this returns a dictionary describing the binary format.
+        """
+        if not self.is_binary_compatible:
+            raise NotImplementedError
 
     def _get_t_starts(self):
         # handle t_starts
@@ -615,7 +610,7 @@ class BaseImagingSegment(BaseSegment):
         Returns
         -------
         series : np.ndarray
-            Array of series, num_samples x width x height
+            Array of series, num_samples x height x width
         """
         # must be implemented in subclass
         raise NotImplementedError

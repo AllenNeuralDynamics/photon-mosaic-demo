@@ -21,11 +21,16 @@ class MedianFilterImagingSegment(BasePreprocessorSegment):
 
     def get_series(self, start_frame, end_frame):
         import numpy as np
-        from scipy.ndimage import median_filter
+        from skimage.morphology import disk
+        from skimage.filters import median
 
         data = self.parent_imaging_segment.get_series(start_frame, end_frame)
-        filtered_data = median_filter(data, size=(1, self.size, self.size))
-        return filtered_data
+        out = np.zeros_like(data)
+        for i in range(data.shape[0]):
+            out[i] = median(data[i], footprint=disk(self.size))
+
+        return out
+
 
 
 median_filter = MedianFilterImaging
